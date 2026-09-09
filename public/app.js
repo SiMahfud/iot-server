@@ -253,10 +253,39 @@ function initDeviceBar() {
 
   // Telemetry real-time micro updates
   state.on('telemetryUpdate', ({ deviceId, data, payload }) => {
-    if (deviceId === state.activeDeviceId) {
-      updateLiveTelemetryDom(data);
-      if (payload && payload.uptime && uptimeDisplay) {
-        uptimeDisplay.textContent = formatUptime(payload.uptime);
+    if (deviceId !== state.activeDeviceId) return;
+
+    // Update nilai sensor (number display)
+    updateLiveTelemetryDom(data);
+
+    // Update uptime display
+    if (payload && payload.uptime && uptimeDisplay) {
+      uptimeDisplay.textContent = formatUptime(payload.uptime);
+    }
+
+    // Update saklar/buzzer cards (checkbox + status teks + active class)
+    const dev = state.getActiveDevice();
+    if (dev && Array.isArray(dev.components)) {
+      for (const [compId, val] of Object.entries(data)) {
+        const comp = dev.components.find(c => c.id === compId);
+        if (!comp) continue;
+        const type = comp.type || comp.driver || '';
+        if (type !== 'switch' && type !== 'buzzer') continue;
+
+        const card = document.getElementById(`comp-widget-${compId}`);
+        if (!card) continue;
+
+        const isOn = val === 'true' || val === true || val === '1';
+        const chk = card.querySelector('input[type="checkbox"]');
+        const statusEl = card.querySelector('[data-status-text]');
+
+        if (chk) chk.checked = isOn;
+        if (statusEl) {
+          statusEl.textContent = isOn ? 'MENYALA (ON)' : 'MATI (OFF)';
+          statusEl.style.color = isOn ? 'var(--primary-glow)' : 'var(--text-muted)';
+        }
+        if (isOn) card.classList.add('active');
+        else card.classList.remove('active');
       }
     }
   });
