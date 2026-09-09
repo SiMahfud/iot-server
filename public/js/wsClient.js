@@ -37,8 +37,13 @@ export function initWebSocket() {
   ws.onopen = () => {
     console.log('[WS] Terhubung! Mengirim token autentikasi...');
     if (serverStatusBadge) {
-      serverStatusBadge.textContent = 'Terhubung';
-      serverStatusBadge.className = 'status-badge online';
+      serverStatusBadge.className = 'status-pill online';
+      const textEl = document.getElementById('serverStatusText') || serverStatusBadge.querySelector('.status-text');
+      if (textEl) {
+        textEl.textContent = 'Server Online';
+      } else {
+        serverStatusBadge.innerHTML = '<span class="status-dot"></span><span id="serverStatusText" class="status-text">Server Online</span>';
+      }
     }
 
     ws.send(JSON.stringify({
@@ -68,8 +73,13 @@ export function initWebSocket() {
     console.warn(`[WS] Sambungan terputus (Code: ${event.code}). Mencoba sambung ulang...`);
     clearInterval(pingInterval);
     if (serverStatusBadge) {
-      serverStatusBadge.textContent = 'Terputus';
-      serverStatusBadge.className = 'status-badge offline';
+      serverStatusBadge.className = 'status-pill offline';
+      const textEl = document.getElementById('serverStatusText') || serverStatusBadge.querySelector('.status-text');
+      if (textEl) {
+        textEl.textContent = 'Server Offline';
+      } else {
+        serverStatusBadge.innerHTML = '<span class="status-dot"></span><span id="serverStatusText" class="status-text">Server Offline</span>';
+      }
     }
 
     clearTimeout(reconnectTimer);

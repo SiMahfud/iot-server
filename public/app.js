@@ -71,7 +71,7 @@ function initAuth() {
       const password = document.getElementById('loginPass').value;
       const errorMsg = document.getElementById('loginErrorMsg');
 
-      fetch('/api/login', {
+      fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -124,12 +124,15 @@ function showLoginScreen(show) {
 }
 
 function validateSession() {
-  fetch('/api/verify', {
+  fetch('/api/auth/check', {
     headers: { 'Authorization': `Bearer ${state.authToken}` }
   })
-  .then(r => r.json())
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
   .then(res => {
-    if (res.success) {
+    if (res.success || res.authenticated) {
       showLoginScreen(false);
       initWebSocket();
       loadInitialData();
@@ -138,7 +141,8 @@ function validateSession() {
       showLoginScreen(true);
     }
   })
-  .catch(() => {
+  .catch((err) => {
+    console.warn('[AUTH] Sesi tidak valid atau server tidak merespons:', err.message);
     showLoginScreen(false);
     initWebSocket();
     loadInitialData();
@@ -226,7 +230,10 @@ function initDeviceBar() {
   if (btnDeleteDevice) {
     btnDeleteDevice.addEventListener('click', () => {
       const dev = state.getActiveDevice();
-      if (!dev) return;
+      if (!dev) {
+        showToast('Tidak ada perangkat yang dipilih untuk dihapus', false);
+        return;
+      }
       if (!confirm(`Hapus perangkat "${dev.name || dev.deviceId}" dari sistem?`)) return;
 
       fetch(`/api/devices/${encodeURIComponent(dev.deviceId)}`, {
@@ -267,6 +274,8 @@ function renderDeviceSelect() {
 
   if (devices.length === 0) {
     deviceSelect.innerHTML = '<option value="">Tidak ada perangkat</option>';
+    updateActiveDeviceHeader();
+    renderComponentsGrid();
     return;
   }
 
@@ -276,7 +285,10 @@ function renderDeviceSelect() {
   });
 
   deviceSelect.innerHTML = html;
-  if (state.activeDeviceId) {
+  if (state.activeDeviceId && state.devices[state.activeDeviceId]) {
+    deviceSelect.value = state.activeDeviceId;
+  } else if (devices.length > 0) {
+    state.activeDeviceId = devices[0].deviceId;
     deviceSelect.value = state.activeDeviceId;
   }
   updateActiveDeviceHeader();
@@ -285,27 +297,53 @@ function renderDeviceSelect() {
 
 function updateActiveDeviceHeader() {
   const dev = state.getActiveDevice();
+  const deviceBarRight = document.getElementById('deviceBarRight');
+  const componentFilterBar = document.getElementById('componentFilterBar');
+  const masterSwitchSection = document.getElementById('masterSwitchSection');
+  const deviceCardCompact = document.getElementById('deviceCardCompact');
+  const hardwareStatusBadge = document.getElementById('hardwareStatusBadge');
+  const hardwareStatusText = document.getElementById('hardwareStatusText') || hardwareStatusBadge?.querySelector('.status-text');
+
   if (!dev) {
     if (deviceName) deviceName.textContent = 'Tidak ada perangkat';
     if (deviceChipBadge) deviceChipBadge.textContent = '-';
     if (deviceIdBadge) deviceIdBadge.textContent = '-';
+    if (uptimeDisplay) uptimeDisplay.textContent = '00:00:00';
+    if (deviceBarRight) deviceBarRight.classList.add('hidden');
+    if (componentFilterBar) componentFilterBar.classList.add('hidden');
+    if (masterSwitchSection) masterSwitchSection.classList.add('hidden');
+    if (deviceCardCompact) deviceCardCompact.classList.add('hidden');
+    if (hardwareStatusBadge) {
+      hardwareStatusBadge.className = 'status-pill offline';
+      if (hardwareStatusText) hardwareStatusText.textContent = 'Hardware';
+    }
     return;
   }
 
+  if (deviceBarRight) deviceBarRight.classList.remove('hidden');
+  if (componentFilterBar) componentFilterBar.classList.remove('hidden');
+  if (deviceCardCompact) deviceCardCompact.classList.remove('hidden');
   if (deviceName) deviceName.textContent = dev.name || dev.deviceId;
   if (deviceChipBadge) deviceChipBadge.textContent = (dev.chip || dev.type || 'ESP').toUpperCase();
   if (deviceIdBadge) deviceIdBadge.textContent = dev.deviceId;
   if (uptimeDisplay) uptimeDisplay.textContent = formatUptime(dev.uptime || 0);
 
-  const hardwareStatusBadge = document.getElementById('hardwareStatusBadge');
-  const hardwareStatusText = document.getElementById('hardwareStatusText');
-  if (hardwareStatusBadge && hardwareStatusText) {
-    if (dev.isOnline) {
-      hardwareStatusBadge.className = 'status-badge online';
-      hardwareStatusText.textContent = 'Online';
+  const hasSwitches = Array.isArray(dev.components) && dev.components.some(c => c.type === 'switch' || c.driver === 'switch');
+  if (masterSwitchSection) {
+    if (hasSwitches) {
+      masterSwitchSection.classList.remove('hidden');
     } else {
-      hardwareStatusBadge.className = 'status-badge offline';
-      hardwareStatusText.textContent = 'Offline';
+      masterSwitchSection.classList.add('hidden');
+    }
+  }
+
+  if (hardwareStatusBadge) {
+    if (dev.isOnline) {
+      hardwareStatusBadge.className = 'status-pill online';
+      if (hardwareStatusText) hardwareStatusText.textContent = 'HW Online';
+    } else {
+      hardwareStatusBadge.className = 'status-pill offline';
+      if (hardwareStatusText) hardwareStatusText.textContent = 'HW Offline';
     }
   }
 }
@@ -461,24 +499,31 @@ function initSettingsTab() {
   const btnChangePass = document.getElementById('btnChangePassword');
   if (btnChangePass) {
     btnChangePass.addEventListener('click', () => {
+      const cur = prompt('Masukkan password saat ini:');
+      if (!cur) return;
       const p1 = prompt('Masukkan password baru:');
       if (!p1) return;
+      if (p1.length < 6) {
+        showToast('Password baru minimal 6 karakter!', false);
+        return;
+      }
       const p2 = prompt('Konfirmasi password baru:');
       if (p1 !== p2) {
         showToast('Password tidak cocok', false);
         return;
       }
 
-      fetch('/api/user/password', {
+      fetch('/api/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${state.authToken}`
         },
-        body: JSON.stringify({ newPassword: p1 })
+        body: JSON.stringify({ currentPassword: cur, newPassword: p1 })
       })
       .then(r => r.json())
-      .then(res => showToast(res.message, res.success));
+      .then(res => showToast(res.message, res.success))
+      .catch(err => showToast(err.message, false));
     });
   }
 }

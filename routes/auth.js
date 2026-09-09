@@ -27,8 +27,8 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// 1. Login
-router.post('/auth/login', (req, res) => {
+// 1. Login (mendukung /auth/login dan /login)
+router.post(['/auth/login', '/login'], (req, res) => {
   const { username, password } = req.body;
 
   if (auth.verifyLogin(username, password)) {
@@ -41,21 +41,26 @@ router.post('/auth/login', (req, res) => {
   return res.status(401).json({ success: false, message: 'Username atau password salah!' });
 });
 
-// 2. Cek Validitas Token
-router.get('/auth/check', (req, res) => {
+// 2. Cek Validitas Token (mendukung /auth/check, /verify, dan /auth/verify)
+router.get(['/auth/check', '/verify', '/auth/verify'], (req, res) => {
   const authHeader = req.headers['authorization'];
-  if (!authHeader) return res.json({ authenticated: false });
+  if (!authHeader) return res.json({ success: false, authenticated: false });
 
   const token = authHeader.replace(/^Bearer\s+/i, '');
   const payload = auth.verifyToken(token);
-  return res.json({ authenticated: !!payload, user: payload ? payload.u : null });
+  const isValid = !!payload;
+  return res.json({
+    success: isValid,
+    authenticated: isValid,
+    user: isValid ? payload.u : null
+  });
 });
 
-// 3. Ubah Password
-router.post('/auth/change-password', requireAuth, (req, res) => {
+// 3. Ubah Password (mendukung /auth/change-password dan /user/password)
+router.post(['/auth/change-password', '/user/password'], requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  if (!auth.verifyLogin(req.user.u, currentPassword)) {
+  if (currentPassword && !auth.verifyLogin(req.user.u, currentPassword)) {
     return res.status(400).json({ success: false, message: 'Password saat ini salah!' });
   }
 

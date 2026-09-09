@@ -559,16 +559,47 @@ export function renderComponentsGrid(filter = state.currentCompFilter) {
   if (!grid) return;
 
   const dev = state.getActiveDevice();
-  if (!dev || !Array.isArray(dev.components) || dev.components.length === 0) {
+  if (!dev) {
+    grid.innerHTML = `
+      <div class="empty-state-card" style="grid-column: 1 / -1; padding: 44px 20px; text-align: center;">
+        <div style="font-size: 2.8rem; margin-bottom: 10px;">📡</div>
+        <h4 style="color: var(--text-main); font-size: 1.05rem; margin-bottom: 8px;">Belum Ada Perangkat IoT</h4>
+        <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 360px; margin: 0 auto 18px; line-height: 1.5;">
+          Hubungkan hardware ESP8266/ESP32 Anda ke server, atau klik tombol di bawah untuk panduan pairing & flash firmware.
+        </p>
+        <button type="button" id="btnZeroAddDevice" class="btn-manage-pins" style="padding: 8px 18px; font-size: 0.84rem; display: inline-flex; margin: 0 auto;">
+          <span>+ Tambah Perangkat IoT</span>
+        </button>
+      </div>
+    `;
+    const btnZeroAdd = document.getElementById('btnZeroAddDevice');
+    if (btnZeroAdd) {
+      btnZeroAdd.addEventListener('click', () => {
+        document.getElementById('modalAddDevice')?.classList.remove('hidden');
+      });
+    }
+    return;
+  }
+
+  if (!Array.isArray(dev.components) || dev.components.length === 0) {
     grid.innerHTML = `
       <div class="empty-state-card" style="grid-column: 1 / -1; padding: 40px 20px; text-align: center;">
         <div style="font-size: 2.5rem; margin-bottom: 8px;">🔌</div>
         <h4 style="color: var(--text-main); margin-bottom: 6px;">Belum Ada Komponen Terdaftar</h4>
-        <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 360px; margin: auto;">
-          Klik tombol <strong>"Modul & Pin"</strong> di atas untuk menambahkan relay, dimmer, servo, atau sensor I2C.
+        <p style="color: var(--text-muted); font-size: 0.85rem; max-width: 360px; margin: 0 auto 16px; line-height: 1.5;">
+          Perangkat <strong>"${escapeHtml(dev.name || dev.deviceId)}"</strong> belum memiliki modul pin atau sensor terpasang.
         </p>
+        <button type="button" id="btnZeroConfigPins" class="btn-manage-pins" style="padding: 8px 16px; font-size: 0.82rem; display: inline-flex; margin: 0 auto;">
+          <span>⚙️ Atur Modul & Pin</span>
+        </button>
       </div>
     `;
+    const btnZeroConfig = document.getElementById('btnZeroConfigPins');
+    if (btnZeroConfig) {
+      btnZeroConfig.addEventListener('click', () => {
+        document.getElementById('btnOpenPinManager')?.click();
+      });
+    }
     return;
   }
 

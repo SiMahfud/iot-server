@@ -11,7 +11,7 @@ export function initPinManagerUi() {
   const modal = document.getElementById('modalPinManager');
   const btnOpen = document.getElementById('btnOpenPinManager');
   const btnClose = document.getElementById('btnClosePinManager');
-  const formAddPin = document.getElementById('formAddPinComponent');
+  const formAddPin = document.getElementById('formAddPin');
   const btnTriggerI2c = document.getElementById('btnTriggerI2cScan');
 
   if (btnOpen && modal) {
@@ -34,10 +34,12 @@ export function initPinManagerUi() {
       document.querySelectorAll('.pin-tab-content').forEach(c => c.classList.remove('active'));
 
       btn.classList.add('active');
-      const target = document.getElementById(btn.dataset.tab);
+      // HTML menggunakan data-pin-tab (bukan data-tab)
+      const tabId = btn.dataset.pinTab;
+      const target = document.getElementById(tabId);
       if (target) target.classList.add('active');
 
-      if (btn.dataset.tab === 'tabActivePins') {
+      if (tabId === 'tabListPins') {
         renderActivePinsList();
       }
     });
@@ -54,7 +56,7 @@ export function initPinManagerUi() {
         return;
       }
 
-      const pin = parseInt(document.getElementById('pinGpioNumber').value);
+      const pin = parseInt(document.getElementById('pinSelect').value);
       const driver = document.getElementById('pinDriverType').value;
       const name = document.getElementById('pinCompName').value.trim();
       const unit = document.getElementById('pinCompUnit').value.trim();

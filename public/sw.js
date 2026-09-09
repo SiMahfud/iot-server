@@ -1,10 +1,12 @@
 // Service Worker untuk PWA Offline Caching
-const CACHE_NAME = 'smart-switch-v3';
+const CACHE_NAME = 'agygateway-v4.3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/style.css?v=2.0',
-  '/app.js?v=2.1',
+  '/style.css?v=4.2',
+  '/css/widgets.css?v=4.2',
+  '/css/automations.css?v=4.2',
+  '/app.js?v=4.2',
   '/manifest.json',
   '/icon.svg'
 ];
@@ -12,7 +14,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching app shell v2');
+      console.log('[SW] Caching app shell v4.2');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );

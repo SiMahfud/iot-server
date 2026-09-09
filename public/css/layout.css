@@ -1,4 +1,4 @@
-﻿/* ==========================================
+/* ==========================================
    Dashboard Container
 ========================================== */
 .app-container {
@@ -51,7 +51,7 @@
 }
 
 .status-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 8px;
@@ -60,6 +60,8 @@
   font-weight: 600;
   border: 1px solid var(--border-color);
   background: rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .status-dot {
@@ -201,11 +203,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 6px 12px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   font-size: 0.82rem;
+  flex-wrap: wrap;
 }
 
 .device-bar-left {
@@ -213,6 +217,7 @@
   align-items: center;
   gap: 8px;
   flex: 1;
+  min-width: 170px;
 }
 
 .device-bar-label {
@@ -222,15 +227,25 @@
 }
 
 .device-dropdown {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
   color: var(--text-main);
   font-family: var(--font-family);
   font-size: 0.84rem;
   font-weight: 600;
   outline: none;
   cursor: pointer;
-  width: 100%;
+  min-width: 120px;
+  flex: 1;
+}
+
+.device-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .device-dropdown option {

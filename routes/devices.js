@@ -66,11 +66,11 @@ router.delete('/devices/:deviceId', (req, res) => {
 
 // --- OTA Firmware ---
 
-router.post('/devices/:deviceId/ota', (req, res) => {
-  const { deviceId } = req.params;
-  const { url, filename, firmwareUrl } = req.body;
-  const binUrl = firmwareUrl || url || (filename ? `${req.protocol}://${req.get('host')}/firmwares/${encodeURIComponent(filename)}` : null);
-  if (!binUrl) return res.status(400).json({ success: false, message: 'URL atau nama file firmware wajib diberikan' });
+const handleOtaRequest = (req, res) => {
+  const deviceId = req.params.deviceId || req.body.deviceId;
+  const { url, filename, firmwareUrl, binUrl: reqBinUrl } = req.body;
+  const binUrl = reqBinUrl || firmwareUrl || url || (filename ? `${req.protocol}://${req.get('host')}/firmwares/${encodeURIComponent(filename)}` : null);
+  if (!deviceId || !binUrl) return res.status(400).json({ success: false, message: 'deviceId dan URL atau nama file firmware wajib diberikan' });
 
   const targetSocket = deviceManager.getSocket(deviceId);
   if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
@@ -81,7 +81,10 @@ router.post('/devices/:deviceId/ota', (req, res) => {
   } else {
     res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
   }
-});
+};
+
+router.post('/devices/:deviceId/ota', handleOtaRequest);
+router.post('/ota/trigger', handleOtaRequest);
 
 // --- Daftar File Firmware ---
 
