@@ -2107,6 +2107,101 @@ body {
 }
 
 /* ==========================================
+   MISSING UTILITY CLASSES
+========================================== */
+
+/* Section Header Row — flex container for section title + action button */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Text-style Action Button (e.g. "+ Tambah Sensor / Pin") */
+.btn-text-action {
+  background: none;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--primary-glow);
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.btn-text-action:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--primary-glow);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Small Action Button (e.g. "Segarkan") */
+.btn-action-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.btn-action-sm:hover {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--primary-glow);
+  transform: translateY(-1px);
+}
+
+.btn-action-sm svg {
+  flex-shrink: 0;
+}
+
+/* Primary Action Button (e.g. "Simpan Pin Config", "Tambah Pin") */
+.btn-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  border: none;
+  color: #fff;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-family: var(--font-family);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+}
+
+.btn-primary-action:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-primary-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==========================================
    DASHBOARD SENSORS & MODULAR COMPONENTS GRID
 ========================================== */
 .components-section {
