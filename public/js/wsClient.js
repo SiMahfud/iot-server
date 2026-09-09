@@ -177,6 +177,41 @@ function handleWsMessage(msg) {
     return;
   }
 
+  // Full Device Update (telemetri dari hardware / add/delete komponen via REST API)
+  if (msg.type === 'DEVICE_UPDATE') {
+    const updatedDev = msg.device || msg.data;
+    if (updatedDev && updatedDev.id) {
+      const existing = state.devices[updatedDev.id];
+      const prevCompCount = existing ? (existing.components || []).length : 0;
+      const newCompCount = (updatedDev.components || []).length;
+
+      // Merge data perangkat ke state
+      state.devices[updatedDev.id] = { ...(existing || {}), ...updatedDev };
+
+      if (updatedDev.id === state.activeDeviceId) {
+        if (prevCompCount !== newCompCount) {
+          // Struktur berubah (tambah/hapus modul) → full re-render
+          state.emit('componentsChange', { deviceId: updatedDev.id, components: updatedDev.components || [] });
+        } else {
+          // Hanya nilai berubah → micro-update DOM via telemetryUpdate event
+          const telemetryData = {};
+          (updatedDev.components || []).forEach(c => {
+            if (c.id && c.value !== undefined) {
+              telemetryData[c.id] = c.value;
+            }
+          });
+          state.emit('telemetryUpdate', {
+            deviceId: updatedDev.id,
+            data: telemetryData,
+            payload: updatedDev
+          });
+        }
+      }
+      updateQuickStats();
+    }
+    return;
+  }
+
   // Update Jadwal
   if (msg.type === 'SCHEDULES_UPDATE') {
     state.setSchedules(msg.schedules || []);

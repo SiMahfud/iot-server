@@ -263,6 +263,7 @@ function initDeviceBar() {
 
   state.on('componentsChange', ({ deviceId }) => {
     if (deviceId === state.activeDeviceId) {
+      updateActiveDeviceHeader(); // update visibility tombol "Nyalakan Semua"
       renderComponentsGrid();
     }
   });
@@ -352,10 +353,33 @@ function updateActiveDeviceHeader() {
 // 4. Master Switch Controls (All ON / All OFF)
 // -------------------------------------------------------------
 function initMasterControls() {
+  const CONTROLLABLE_TYPES = new Set(['switch', 'dimmer', 'servo', 'buzzer', 'rgb_led']);
+
+  function applyAllState(newState) {
+    if (!state.activeDeviceId) return;
+    const dev = state.getActiveDevice();
+    if (!dev || !Array.isArray(dev.components)) return;
+
+    // Update state lokal semua komponen yang bisa dikontrol
+    dev.components.forEach(c => {
+      if (CONTROLLABLE_TYPES.has(c.type) || CONTROLLABLE_TYPES.has(c.driver)) {
+        if (c.type === 'dimmer') {
+          c.value = newState ? '100' : '0';
+        } else if (c.type === 'servo') {
+          c.value = newState ? '90' : '0';
+        } else {
+          c.value = String(newState); // 'true' / 'false'
+        }
+      }
+    });
+    renderComponentsGrid();
+  }
+
   if (btnAllOn) {
     btnAllOn.addEventListener('click', () => {
       if (!state.activeDeviceId) return;
       sendWs({ action: 'set_all', target: state.activeDeviceId, state: true });
+      applyAllState(true);
       showToast('Semua saklar dinyalakan');
     });
   }
@@ -364,6 +388,7 @@ function initMasterControls() {
     btnAllOff.addEventListener('click', () => {
       if (!state.activeDeviceId) return;
       sendWs({ action: 'set_all', target: state.activeDeviceId, state: false });
+      applyAllState(false);
       showToast('Semua saklar dimatikan');
     });
   }

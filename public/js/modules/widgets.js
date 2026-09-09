@@ -27,8 +27,46 @@ export function triggerComponent(componentId, value, duration = 0) {
   const sent = sendWs(msg);
   if (!sent) {
     showToast('WebSocket terputus, tidak dapat mengirim perintah', false);
+    return;
+  }
+
+  // Optimistic local state update — UI langsung berubah tanpa tunggu telemetri
+  const dev = state.getActiveDevice();
+  if (dev && Array.isArray(dev.components)) {
+    const comp = dev.components.find(c => c.id === componentId);
+    if (comp) {
+      comp.value = typeof value === 'boolean' ? String(value) : String(value);
+      // Jika ada timer, tandai sedang countdown
+      if (duration > 0) {
+        comp._timerUntil = Date.now() + duration * 1000;
+      }
+      // Micro-update: update toggle di DOM tanpa full re-render
+      _updateSwitchDom(componentId, comp.value);
+    }
   }
 }
+
+// Update DOM saklar secara langsung tanpa re-render seluruh grid
+function _updateSwitchDom(componentId, newValue) {
+  const card = document.getElementById(`comp-widget-${componentId}`);
+  if (!card) return;
+
+  const isOn = newValue === 'true' || newValue === true || newValue === '1';
+  const chk = card.querySelector('input[type="checkbox"]');
+  const statusText = card.querySelector('[data-status-text]') || card.querySelector('span[style*="font-weight: 700"]');
+
+  if (chk) chk.checked = isOn;
+  if (statusText) {
+    statusText.textContent = isOn ? 'MENYALA (ON)' : 'MATI (OFF)';
+    statusText.style.color = isOn ? 'var(--primary-glow)' : 'var(--text-muted)';
+  }
+  if (isOn) {
+    card.classList.add('active');
+  } else {
+    card.classList.remove('active');
+  }
+}
+
 
 export function calibrateComponent(componentId) {
   if (!state.activeDeviceId) return;
@@ -83,7 +121,7 @@ function renderSwitchCard(c, dev) {
       </div>
     </div>
     <div style="display: flex; align-items: center; justify-content: space-between; margin: 12px 0;">
-      <span style="font-size: 0.9rem; font-weight: 700; color: ${isOn ? 'var(--primary-glow)' : 'var(--text-muted)'};">
+      <span data-status-text style="font-size: 0.9rem; font-weight: 700; color: ${isOn ? 'var(--primary-glow)' : 'var(--text-muted)'};">
         ${isOn ? 'MENYALA (ON)' : 'MATI (OFF)'}
       </span>
       <label class="switch-control">

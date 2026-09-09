@@ -110,10 +110,15 @@ export function initPinManagerUi() {
       .then(r => r.json())
       .then(res => {
         if (res.success) {
-          showToast(`Komponen "${name}" berhasil ditambahkan ke hardware!`);
+          // Sync state lokal langsung dari response (tidak perlu tunggu WS broadcast)
+          if (res.data && res.data.id) {
+            state.devices[res.data.id] = { ...(state.devices[res.data.id] || {}), ...res.data };
+          }
+          showToast(`Komponen "${name}" berhasil ditambahkan!`);
           formAddPin.reset();
           if (modal) modal.classList.add('hidden');
           renderComponentsGrid();
+          renderActivePinsList();
         } else {
           showToast(res.message || 'Gagal menambahkan komponen', false);
         }
