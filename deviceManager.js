@@ -135,6 +135,21 @@ class DeviceManager {
           if (r) r.state = stateBool;
         }
       }
+
+      // 5. Evaluasi aturan otomatis cerdas (Smart IF-THEN Rule Engine)
+      try {
+        const autoEngine = require('./automationEngine');
+        if (autoEngine && typeof autoEngine.evaluate === 'function') {
+          if (typeof val === 'object' && val !== null) {
+            for (const [subKey, subVal] of Object.entries(val)) {
+              autoEngine.evaluate(deviceId, `${compId}_${subKey}`, subVal);
+            }
+          }
+          autoEngine.evaluate(deviceId, compId, val);
+        }
+      } catch (autoErr) {
+        // Silently skip if autoEngine is still initializing
+      }
     }
 
     return dev;

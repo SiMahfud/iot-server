@@ -73,10 +73,11 @@ class SchedulerManager {
       deviceId: data.deviceId,
       componentId: componentId,
       channel: data.channel !== undefined ? parseInt(data.channel) : (componentId && /^relay_\d+$/i.test(componentId) ? parseInt(componentId.replace(/\D/g, '')) : 0),
-      action: data.action || 'on',          // 'on' | 'off' | 'toggle' | 'value'
+      action: data.action || 'on',          // 'on' | 'off' | 'toggle' | 'value' | 'angle'
       time: data.time,                       // 'HH:MM'
       days: Array.isArray(data.days) ? data.days : [], // [0-6], kosong = setiap hari
       duration: data.duration ? parseInt(data.duration) : 0, // durasi nyala dalam menit (opsional)
+      targetValue: data.targetValue !== undefined ? String(data.targetValue) : '',
       enabled: data.enabled !== false,
       label: data.label || (componentId ? `Jadwal ${componentId}` : `Jadwal Relay #${data.channel || 1}`),
       createdAt: new Date().toISOString()
@@ -222,6 +223,10 @@ class SchedulerManager {
       state = true;
     } else if (schedule.action === 'off') {
       state = false;
+    } else if (schedule.action === 'value') {
+      state = parseFloat(schedule.targetValue) || 0;
+    } else if (schedule.action === 'angle') {
+      state = parseInt(schedule.targetValue) || 0;
     } else if (schedule.action === 'toggle') {
       if (dev && Array.isArray(dev.components)) {
         const c = dev.components.find(x => x.id === compId || x.componentId === compId);

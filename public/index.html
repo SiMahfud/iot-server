@@ -15,7 +15,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=3.5">
+  <link rel="stylesheet" href="/style.css?v=4.0">
+  <link rel="stylesheet" href="/css/widgets.css?v=4.0">
+  <link rel="stylesheet" href="/css/automations.css?v=4.0">
 </head>
 <body>
   <!-- ==========================================
@@ -313,8 +315,13 @@
                   <option value="on">Nyalakan (ON)</option>
                   <option value="off">Matikan (OFF)</option>
                   <option value="toggle">Toggle</option>
-                  <option value="value">Set Nilai (Dimmer)</option>
+                  <option value="value">Set Nilai (Dimmer PWM)</option>
+                  <option value="angle">Set Sudut (Servo 0-180°)</option>
                 </select>
+              </div>
+              <div class="sched-field hidden" id="schedTargetValueGroup">
+                <label class="sched-label" id="schedTargetValueLabel">Nilai Target (PWM / Sudut)</label>
+                <input type="number" id="schedTargetValue" class="sched-input" placeholder="Contoh: 90">
               </div>
               <div class="sched-field">
                 <label class="sched-label">Jam Eksekusi</label>
@@ -383,7 +390,131 @@
     </main>
 
     <!-- ==========================================
-         TAB 3: RIWAYAT AKTIVITAS (LOGS)
+         TAB 3: OTOMASI PINTAR (SMART RULE ENGINE)
+    ========================================== -->
+    <main id="tabOtomasi" class="tab-view hidden">
+      <div class="section-card">
+        <div class="section-header-compact">
+          <div class="section-title-group">
+            <h3 class="section-title">⚡ Otomasi Cerdas (IF-THEN Rules)</h3>
+            <p class="section-desc">Hubungkan sensor dan aktuator secara event-driven (misal: jika suhu > 30°C maka servo buka atau relay ON)</p>
+          </div>
+        </div>
+
+        <form id="automationForm" class="schedule-form">
+          <div class="sched-field">
+            <label class="sched-label">Nama Aturan Otomasi</label>
+            <input type="text" id="autoName" class="sched-input" placeholder="Misal: Exhaust Fan Otomatis Saat Panas" required maxlength="50">
+          </div>
+
+          <!-- Trigger Row -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: var(--accent-blue); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
+              1. KONDISI PEMICU (IF / JIKA)
+            </span>
+            <div class="sched-form-row">
+              <div class="sched-field">
+                <label class="sched-label">Node IoT Sumber</label>
+                <select id="autoTriggerDevice" class="sched-input" required>
+                  <option value="">Pilih Node Sensor...</option>
+                </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Komponen Sensor</label>
+                <select id="autoTriggerComp" class="sched-input" required>
+                  <option value="">Pilih Komponen...</option>
+                </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Kondisi Operator</label>
+                <select id="autoOperator" class="sched-input" required>
+                  <option value=">">Lebih Dari ( > )</option>
+                  <option value="<">Kurang Dari ( < )</option>
+                  <option value=">=">Lebih Dari / Sama Dengan ( >= )</option>
+                  <option value="<=">Kurang Dari / Sama Dengan ( <= )</option>
+                  <option value="==">Sama Dengan ( == )</option>
+                  <option value="!=">Tidak Sama Dengan ( != )</option>
+                  <option value="motion">Gerak Terdeteksi (PIR High)</option>
+                  <option value="tilt">Kemiringan Spasial / Guncangan (MPU)</option>
+                </select>
+              </div>
+              <div class="sched-field" id="autoThresholdGroup">
+                <label class="sched-label">Nilai Ambang (Threshold)</label>
+                <input type="number" step="any" id="autoThreshold" class="sched-input" placeholder="Contoh: 30.5">
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Row -->
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+            <span style="font-size: 0.78rem; font-weight: 700; color: var(--primary-glow); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
+              2. AKSI YANG DIJALANKAN (THEN / MAKA)
+            </span>
+            <div class="sched-form-row">
+              <div class="sched-field">
+                <label class="sched-label">Node IoT Target</label>
+                <select id="autoActionDevice" class="sched-input" required>
+                  <option value="">Pilih Node Target...</option>
+                </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Komponen Aktuator Target</label>
+                <select id="autoActionComp" class="sched-input" required>
+                  <option value="">Pilih Aktuator...</option>
+                </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Jenis Aksi</label>
+                <select id="autoActionType" class="sched-input" required>
+                  <option value="on">Nyalakan (ON)</option>
+                  <option value="off">Matikan (OFF)</option>
+                  <option value="toggle">Toggle Status</option>
+                  <option value="angle">Set Sudut Servo (0-180°)</option>
+                  <option value="value">Set Nilai PWM (0-100%)</option>
+                  <option value="pulse">Pulsa / Beep Buzzer</option>
+                </select>
+              </div>
+              <div class="sched-field" id="autoActionValGroup">
+                <label class="sched-label" id="autoActionValLabel">Nilai Parameter</label>
+                <input type="number" id="autoActionValue" class="sched-input" placeholder="Contoh: 90">
+              </div>
+            </div>
+
+            <div class="sched-form-row" style="margin-top: 8px;">
+              <div class="sched-field">
+                <label class="sched-label">Durasi Nyala (Detik, opsional)</label>
+                <input type="number" id="autoDuration" class="sched-input" min="0" placeholder="0 = permanen">
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Jeda Anti-Spam / Cooldown (Detik)</label>
+                <input type="number" id="autoCooldown" class="sched-input" min="1" value="10" required title="Mencegah aksi bergetar terus-menerus">
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-add-schedule" id="btnSaveAutomation">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span>Simpan Aturan Otomasi</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Daftar Aturan Aktif -->
+      <div class="section-card">
+        <div class="section-header-compact">
+          <h3 class="section-title">Daftar Aturan Otomasi Aktif</h3>
+          <span class="badge-count" id="autoCountBadge">0</span>
+        </div>
+        <div class="schedule-list" id="automationList">
+          <p class="empty-schedule-msg">Memuat daftar aturan otomasi...</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- ==========================================
+         TAB 4: RIWAYAT AKTIVITAS (LOGS)
     ========================================== -->
     <main id="tabAktivitas" class="tab-view hidden">
       <div class="section-card">
@@ -848,6 +979,15 @@
         <span class="nav-label">Jadwal</span>
       </button>
 
+      <button class="nav-tab-btn" data-tab="tabOtomasi" type="button">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <span class="nav-label">Otomasi</span>
+      </button>
+
       <button class="nav-tab-btn" data-tab="tabAktivitas" type="button">
         <div class="nav-icon-wrap">
           <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
@@ -1057,6 +1197,9 @@ void loop() {
                 <optgroup label="Aktuator Output">
                   <option value="switch">🔌 Saklar / Relay (Digital Output)</option>
                   <option value="dimmer">💡 Dimmer / PWM (Lampu Redup / Speed Kipas 0-100%)</option>
+                  <option value="servo">🦾 Motor Servo (Posisi Sudut 0-180°)</option>
+                  <option value="rgb_led">🎨 RGB LED / Strip NeoPixel WS2812</option>
+                  <option value="buzzer">🔔 Buzzer / Alarm Audio</option>
                 </optgroup>
                 <optgroup label="Sensor Digital & Analog">
                   <option value="digital_in">🚶 Sensor Gerak / Saklar Pintu (PIR / Digital In)</option>
@@ -1070,6 +1213,7 @@ void loop() {
                   <option value="bh1750">☀️ BH1750 (I2C Sensor Cahaya Lux)</option>
                   <option value="sht30">🌡️ SHT30 / SHT31 (I2C Suhu & Kelembapan)</option>
                   <option value="aht10">🌡️ AHT10 / AHT20 (I2C Suhu & Kelembapan)</option>
+                  <option value="mpu6050">🧭 MPU6050 (I2C 6-Axis Gyro & Accelerometer 3D)</option>
                 </optgroup>
               </select>
             </div>
@@ -1239,6 +1383,6 @@ void loop() {
     <span id="toastMessage">Pesan</span>
   </div>
 
-  <script src="/app.js?v=3.5"></script>
+  <script type="module" src="/app.js?v=4.0"></script>
 </body>
 </html>

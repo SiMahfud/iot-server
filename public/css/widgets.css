@@ -1,0 +1,501 @@
+/* =============================================================
+   WIDGETS & COMPONENT CARDS STYLING
+   AgyGateway Universal IoT Server
+   ============================================================= */
+
+/* --- Component Filter Pills --- */
+.component-filter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 12px 0;
+  scrollbar-width: none;
+}
+.component-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+.comp-filter-pill {
+  padding: 6px 14px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-smooth);
+}
+.comp-filter-pill:hover {
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.comp-filter-pill.active {
+  background: var(--primary-soft);
+  color: var(--primary-glow);
+  border-color: var(--border-active);
+}
+
+/* --- Components Grid Container --- */
+.components-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* --- Base Component Card --- */
+.component-widget-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+.component-widget-card:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+.component-widget-card.active {
+  background: linear-gradient(145deg, var(--bg-card-active), var(--bg-card));
+  border-color: var(--border-active);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+}
+
+/* Card Header */
+.comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.comp-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.comp-icon {
+  font-size: 1.4rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.comp-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.comp-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+.comp-pin-tag {
+  font-size: 0.7rem;
+  font-family: monospace;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+/* Card Actions */
+.card-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-card-action {
+  background: transparent;
+  border: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  transition: var(--transition-smooth);
+}
+.btn-card-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+.btn-card-action.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger-glow);
+}
+.btn-card-timer {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.btn-card-timer:hover {
+  background: var(--primary-soft);
+  color: var(--primary-glow);
+  border-color: var(--border-active);
+}
+
+/* Card Footer */
+.comp-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+/* --- Switch Toggle Control --- */
+.switch-control {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+.switch-control input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.switch-control .slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 26px;
+}
+.switch-control .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #94a3b8;
+  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+}
+.switch-control input:checked + .slider {
+  background-color: var(--primary-glow);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+.switch-control input:checked + .slider:before {
+  transform: translateX(22px);
+  background-color: #ffffff;
+}
+
+/* --- Dimmer PWM Slider --- */
+.dimmer-range-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #1e293b;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--accent-blue);
+  margin: 8px 0;
+}
+.dimmer-presets {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.btn-dimmer-preset {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.btn-dimmer-preset:hover {
+  background: var(--accent-blue-soft);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+/* --- SERVO MOTOR WIDGET (0-180°) --- */
+.servo-angle-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.servo-angle-text {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #38bdf8;
+  font-family: monospace;
+}
+.servo-range-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #1e293b;
+  outline: none;
+  cursor: pointer;
+  accent-color: #38bdf8;
+  margin: 6px 0;
+}
+.servo-presets {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.btn-servo-preset {
+  flex: 1;
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.btn-servo-preset:hover {
+  background: rgba(56, 189, 248, 0.2);
+  transform: translateY(-1px);
+}
+
+/* --- MPU6050 3D ORIENTATION VISUALIZER --- */
+.mpu-scene {
+  width: 100%;
+  height: 110px;
+  perspective: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.06) 0%, rgba(15, 21, 35, 0) 75%);
+  border-radius: var(--radius-md);
+  border: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.mpu-cube {
+  width: 80px;
+  height: 46px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.12s cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+.mpu-face {
+  position: absolute;
+  width: 80px;
+  height: 46px;
+  border: 1px solid rgba(56, 189, 248, 0.6);
+  background: rgba(15, 23, 42, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #38bdf8;
+  border-radius: 6px;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+  letter-spacing: 0.5px;
+}
+.mpu-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 8px 0;
+}
+.mpu-metric-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 4px 2px;
+  text-align: center;
+}
+.mpu-metric-label {
+  font-size: 0.65rem;
+  color: var(--text-subtle);
+  display: block;
+}
+.mpu-metric-val {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-main);
+  font-family: monospace;
+}
+.btn-mpu-tare {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.btn-mpu-tare:hover {
+  background: var(--accent-blue-soft);
+  color: var(--accent-blue);
+  border-color: var(--accent-blue);
+}
+
+/* --- RGB LED / NEOPIXEL WIDGET --- */
+.rgb-controls-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+.rgb-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rgb-color-input {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 44px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.rgb-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.rgb-color-input::-webkit-color-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+}
+.rgb-preset-chips {
+  display: flex;
+  gap: 6px;
+}
+.rgb-chip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.rgb-chip:hover {
+  transform: scale(1.15);
+}
+
+/* --- BUZZER / ALARM WIDGET --- */
+.buzzer-actions-row {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+.btn-buzzer-action {
+  flex: 1;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.btn-buzzer-beep {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: var(--accent-amber);
+}
+.btn-buzzer-beep:hover {
+  background: rgba(245, 158, 11, 0.2);
+}
+.btn-buzzer-alarm {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.25);
+  color: var(--danger-glow);
+}
+.btn-buzzer-alarm:hover {
+  background: rgba(244, 63, 94, 0.2);
+}
+
+/* --- DIGITAL IN / INDICATOR PILL --- */
+.indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-xl);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.indicator-pill.active {
+  background: var(--danger-soft);
+  color: var(--danger-glow);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  animation: pulseWarning 1.5s infinite;
+}
+.indicator-pill.inactive {
+  background: var(--primary-soft);
+  color: var(--primary-glow);
+  border: 1px solid var(--border-active);
+}
+
+/* --- SENSOR METRICS DISPLAY --- */
+.comp-val-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin: 10px 0;
+}
+.comp-val-number {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1;
+  font-family: var(--font-family);
+  letter-spacing: -0.5px;
+}
+.comp-val-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.btn-card-graph {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: var(--accent-blue);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.btn-card-graph:hover {
+  background: rgba(56, 189, 248, 0.18);
+}

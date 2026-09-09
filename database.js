@@ -59,8 +59,29 @@ class DatabaseManager {
         duration INTEGER NOT NULL DEFAULT 0,
         enabled INTEGER NOT NULL DEFAULT 1,
         label TEXT,
+        targetValue TEXT DEFAULT '',
         createdAt TEXT,
         FOREIGN KEY (deviceId) REFERENCES devices(deviceId) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS automations (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        triggerDeviceId TEXT NOT NULL,
+        triggerComponentId TEXT NOT NULL,
+        operator TEXT NOT NULL,
+        threshold REAL,
+        actionDeviceId TEXT NOT NULL,
+        actionComponentId TEXT NOT NULL,
+        actionType TEXT NOT NULL,
+        actionValue TEXT DEFAULT '',
+        duration INTEGER DEFAULT 0,
+        cooldown INTEGER DEFAULT 10,
+        lastTriggered TEXT,
+        createdAt TEXT,
+        FOREIGN KEY (triggerDeviceId) REFERENCES devices(deviceId) ON DELETE CASCADE,
+        FOREIGN KEY (actionDeviceId) REFERENCES devices(deviceId) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS users (
@@ -112,6 +133,10 @@ class DatabaseManager {
       if (!scheduleCols.includes('componentId')) {
         this.db.exec("ALTER TABLE schedules ADD COLUMN componentId TEXT;");
         console.log('[MIGRATION] Kolom componentId berhasil ditambahkan ke tabel schedules');
+      }
+      if (!scheduleCols.includes('targetValue')) {
+        this.db.exec("ALTER TABLE schedules ADD COLUMN targetValue TEXT DEFAULT '';");
+        console.log('[MIGRATION] Kolom targetValue berhasil ditambahkan ke tabel schedules');
       }
 
       const deviceCols = this.db.prepare("PRAGMA table_info(devices)").all().map(c => c.name);
@@ -475,10 +500,11 @@ class DatabaseManager {
   }
 
   updateComponentValue(deviceId, componentId, value, updatedAt = new Date().toISOString()) {
+    const valStr = (typeof value === 'object' && value !== null) ? JSON.stringify(value) : String(value);
     this.db.prepare(`
       UPDATE device_components SET value = ?, updatedAt = ?
       WHERE deviceId = ? AND componentId = ?
-    `).run(String(value), updatedAt, deviceId, componentId);
+    `).run(valStr, updatedAt, deviceId, componentId);
   }
 
   renameComponent(deviceId, componentId, newName) {
@@ -536,6 +562,18 @@ class DatabaseManager {
 
   addTelemetry(deviceId, componentId, value, timestamp = new Date().toISOString()) {
     try {
+      if (typeof value === 'object' && value !== null) {
+        for (const [subKey, subVal] of Object.entries(value)) {
+          const num = parseFloat(subVal);
+          if (!isNaN(num)) {
+            this.db.prepare(`
+              INSERT INTO telemetry_history (deviceId, componentId, value, timestamp)
+              VALUES (?, ?, ?, ?)
+            `).run(deviceId, `${componentId}_${subKey}`, num, timestamp);
+          }
+        }
+        return;
+      }
       const numVal = parseFloat(value);
       if (!isNaN(numVal)) {
         this.db.prepare(`
@@ -579,6 +617,7 @@ class DatabaseManager {
       duration: r.duration,
       enabled: Boolean(r.enabled),
       label: r.label,
+      targetValue: r.targetValue || '',
       createdAt: r.createdAt
     }));
   }
@@ -597,6 +636,7 @@ class DatabaseManager {
       duration: r.duration,
       enabled: Boolean(r.enabled),
       label: r.label,
+      targetValue: r.targetValue || '',
       createdAt: r.createdAt
     };
   }
@@ -604,8 +644,8 @@ class DatabaseManager {
   addSchedule(s) {
     const componentId = s.componentId || (s.channel ? `relay_${s.channel}` : null);
     const stmt = this.db.prepare(`
-      INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, targetValue, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       s.id,
@@ -618,6 +658,7 @@ class DatabaseManager {
       s.duration || 0,
       s.enabled !== false ? 1 : 0,
       s.label || (s.componentId ? `Jadwal ${s.componentId}` : `Jadwal Relay #${s.channel}`),
+      s.targetValue !== undefined ? String(s.targetValue) : '',
       s.createdAt || new Date().toISOString()
     );
     const created = this.getScheduleById(s.id);
@@ -644,7 +685,8 @@ class DatabaseManager {
         days = ?,
         duration = ?,
         enabled = ?,
-        label = ?
+        label = ?,
+        targetValue = ?
       WHERE id = ?
     `).run(
       merged.deviceId,
@@ -656,6 +698,7 @@ class DatabaseManager {
       merged.duration || 0,
       merged.enabled !== false ? 1 : 0,
       merged.label,
+      merged.targetValue !== undefined ? String(merged.targetValue) : '',
       id
     );
 
@@ -671,6 +714,116 @@ class DatabaseManager {
       this.syncSchedulesToJson();
     }
     return success;
+  }
+
+  // ==========================================
+  // Smart Automations (IF-THEN Rules) Operations
+  // ==========================================
+
+  getAllAutomations(triggerDeviceId = null) {
+    let rows;
+    if (triggerDeviceId) {
+      rows = this.db.prepare('SELECT * FROM automations WHERE triggerDeviceId = ? ORDER BY createdAt DESC').all(triggerDeviceId);
+    } else {
+      rows = this.db.prepare('SELECT * FROM automations ORDER BY createdAt DESC').all();
+    }
+    return rows.map(r => ({
+      ...r,
+      enabled: Boolean(r.enabled),
+      duration: parseInt(r.duration) || 0,
+      cooldown: parseInt(r.cooldown) || 10,
+      threshold: r.threshold !== null && r.threshold !== undefined ? parseFloat(r.threshold) : null
+    }));
+  }
+
+  getAutomationById(id) {
+    const r = this.db.prepare('SELECT * FROM automations WHERE id = ?').get(id);
+    if (!r) return null;
+    return {
+      ...r,
+      enabled: Boolean(r.enabled),
+      duration: parseInt(r.duration) || 0,
+      cooldown: parseInt(r.cooldown) || 10,
+      threshold: r.threshold !== null && r.threshold !== undefined ? parseFloat(r.threshold) : null
+    };
+  }
+
+  addAutomation(data) {
+    const id = data.id || ('auto_' + require('crypto').randomBytes(6).toString('hex'));
+    const stmt = this.db.prepare(`
+      INSERT INTO automations (
+        id, name, enabled, triggerDeviceId, triggerComponentId, operator,
+        threshold, actionDeviceId, actionComponentId, actionType, actionValue,
+        duration, cooldown, lastTriggered, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(
+      id,
+      data.name || `Aturan Otomasi ${data.triggerComponentId || ''}`,
+      data.enabled !== false ? 1 : 0,
+      data.triggerDeviceId,
+      data.triggerComponentId,
+      data.operator || '>',
+      data.threshold !== undefined && data.threshold !== '' && data.threshold !== null ? parseFloat(data.threshold) : null,
+      data.actionDeviceId || data.triggerDeviceId,
+      data.actionComponentId,
+      data.actionType || 'on',
+      data.actionValue !== undefined ? String(data.actionValue) : '',
+      parseInt(data.duration) || 0,
+      parseInt(data.cooldown) || 10,
+      data.lastTriggered || null,
+      data.createdAt || new Date().toISOString()
+    );
+    return this.getAutomationById(id);
+  }
+
+  updateAutomation(id, fields) {
+    const current = this.getAutomationById(id);
+    if (!current) return null;
+    const merged = { ...current, ...fields };
+
+    this.db.prepare(`
+      UPDATE automations SET
+        name = ?,
+        enabled = ?,
+        triggerDeviceId = ?,
+        triggerComponentId = ?,
+        operator = ?,
+        threshold = ?,
+        actionDeviceId = ?,
+        actionComponentId = ?,
+        actionType = ?,
+        actionValue = ?,
+        duration = ?,
+        cooldown = ?,
+        lastTriggered = ?
+      WHERE id = ?
+    `).run(
+      merged.name,
+      merged.enabled ? 1 : 0,
+      merged.triggerDeviceId,
+      merged.triggerComponentId,
+      merged.operator,
+      merged.threshold !== null && merged.threshold !== '' && merged.threshold !== undefined ? parseFloat(merged.threshold) : null,
+      merged.actionDeviceId,
+      merged.actionComponentId,
+      merged.actionType,
+      String(merged.actionValue || ''),
+      parseInt(merged.duration) || 0,
+      parseInt(merged.cooldown) || 10,
+      merged.lastTriggered || null,
+      id
+    );
+    return this.getAutomationById(id);
+  }
+
+  deleteAutomation(id) {
+    const info = this.db.prepare('DELETE FROM automations WHERE id = ?').run(id);
+    return info.changes > 0;
+  }
+
+  updateAutomationTriggered(id, timestamp = new Date().toISOString()) {
+    this.db.prepare('UPDATE automations SET lastTriggered = ? WHERE id = ?').run(timestamp, id);
   }
 
   // ==========================================

@@ -14,6 +14,8 @@ try {
 const auth = require('./auth');
 const deviceManager = require('./deviceManager');
 const schedulerManager = require('./schedulerManager');
+const automationEngine = require('./automationEngine');
+const componentTypes = require('./modules/componentTypes');
 const db = require('./database');
 
 const app = express();
@@ -99,7 +101,9 @@ wss.on('connection', (ws, req) => {
       ws.send(JSON.stringify({
         type: 'INIT_STATE',
         devices: deviceManager.getAll(),
-        schedules: schedulerManager.getSchedules()
+        schedules: schedulerManager.getSchedules(),
+        automations: automationEngine.getRules(),
+        componentTypes: componentTypes.COMPONENT_TYPES
       }));
     } else if (qKey && auth.verifyDeviceKey(qKey)) {
       isAuthenticated = true;
@@ -131,7 +135,9 @@ wss.on('connection', (ws, req) => {
           ws.send(JSON.stringify({
             type: 'INIT_STATE',
             devices: deviceManager.getAll(),
-            schedules: schedulerManager.getSchedules()
+            schedules: schedulerManager.getSchedules(),
+            automations: automationEngine.getRules(),
+            componentTypes: componentTypes.COMPONENT_TYPES
           }));
           return;
         } else {
@@ -283,8 +289,8 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // 3. Perintah Kontrol Komponen Universal & Relay & I2C Scan & Virtual Pin
-      if (msg.action === 'set_component' || msg.action === 'set_relay' || msg.action === 'set_all' || msg.action === 'get_status' || msg.action === 'ota_update' || msg.action === 'scan_i2c' || msg.action === 'virtual_write') {
+      // 3. Perintah Kontrol Komponen Universal & Relay & I2C Scan & Virtual Pin & Kalibrasi
+      if (msg.action === 'set_component' || msg.action === 'set_relay' || msg.action === 'set_all' || msg.action === 'get_status' || msg.action === 'ota_update' || msg.action === 'scan_i2c' || msg.action === 'virtual_write' || msg.action === 'calibrate_component') {
         const targetId = msg.target;
         const targetSocket = deviceManager.getSocket(targetId);
 
@@ -684,6 +690,48 @@ app.post('/api/schedules/sync-json', requireAuth, (req, res) => {
 });
 
 // -------------------------------------------------------------
+// REST API Smart Automations (IF-THEN Rules)
+// -------------------------------------------------------------
+app.get('/api/automations', requireAuth, (req, res) => {
+  const deviceId = req.query.deviceId || null;
+  res.json({ success: true, data: automationEngine.getRules(deviceId) });
+});
+
+app.post('/api/automations', requireAuth, (req, res) => {
+  try {
+    const created = automationEngine.addRule(req.body);
+    res.json({ success: true, data: created, message: `Aturan "${created.name}" berhasil dibuat` });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+app.put('/api/automations/:id', requireAuth, (req, res) => {
+  try {
+    const updated = automationEngine.updateRule(req.params.id, req.body);
+    if (!updated) return res.status(404).json({ success: false, message: 'Aturan tidak ditemukan' });
+    res.json({ success: true, data: updated, message: `Aturan "${updated.name}" berhasil diperbarui` });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+app.delete('/api/automations/:id', requireAuth, (req, res) => {
+  const success = automationEngine.deleteRule(req.params.id);
+  if (!success) return res.status(404).json({ success: false, message: 'Aturan tidak ditemukan' });
+  res.json({ success: true, message: 'Aturan berhasil dihapus' });
+});
+
+app.post('/api/automations/:id/test', requireAuth, (req, res) => {
+  const result = automationEngine.testRule(req.params.id);
+  res.json(result);
+});
+
+app.get('/api/component-types', (req, res) => {
+  res.json({ success: true, data: componentTypes.COMPONENT_TYPES });
+});
+
+// -------------------------------------------------------------
 // REST API Daftar Firmware (untuk Web Flasher)
 // -------------------------------------------------------------
 app.get('/api/firmwares', requireAuth, (req, res) => {
@@ -720,8 +768,9 @@ app.get('/api/logs', requireAuth, (req, res) => {
 // Jalankan Server
 // -------------------------------------------------------------
 server.listen(PORT, () => {
-  // Inisialisasi scheduler setelah server aktif
+  // Inisialisasi scheduler dan automation engine setelah server aktif
   schedulerManager.init(deviceManager, broadcastToBrowsers);
+  automationEngine.init(deviceManager, broadcastToBrowsers);
 
   // File Watcher: Deteksi jika schedules.json diedit secara manual di text editor
   const SCHEDULES_FILE = path.join(__dirname, 'schedules.json');
@@ -759,13 +808,14 @@ server.listen(PORT, () => {
 
   console.log(`
 ============================================================
-  🔒 IoT Smart Relay Server Aktif (SQLite Database Mode)
+  🔒 AgyGateway Universal IoT Server Aktif (SQLite Mode)
   - Port           : ${PORT}
   - Database       : SQLite (iot.db) - WAL Mode (JSON Live-Sync)
   - Web Dashboard  : http://localhost:${PORT}
   - WebSocket Path : ws://localhost:${PORT}${config.server.wsPath}
   - Auth           : Enabled (User: admin)
   - Scheduler      : ${schedulerManager.getSchedules().length} jadwal aktif
+  - Automations    : ${automationEngine.getRules().length} aturan aktif
 ============================================================
   `);
 });
