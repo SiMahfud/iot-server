@@ -83,11 +83,18 @@ deviceRoutes.init({ deviceManager, db, broadcastToBrowsers, requireAuth });
 scheduleRoutes.init({ schedulerManager, db, broadcastToBrowsers, requireAuth });
 automationRoutes.init({ automationEngine, componentTypes, db, requireAuth });
 
-// Mount Routes
+// Mount Routes (requireAuth diterapkan di level mount untuk menjamin perlindungan)
 app.use('/api', authRoutes.router);
-app.use('/api', deviceRoutes.router);
-app.use('/api/schedules', scheduleRoutes.router);
-app.use('/api', automationRoutes.router);
+
+// Public catalog endpoint (tanpa autentikasi agar UI konfigurasi dapat membaca katalog)
+app.get('/api/component-types', (req, res) => {
+  res.json({ success: true, data: componentTypes.COMPONENT_TYPES });
+});
+
+// Protected routes (memerlukan autentikasi)
+app.use('/api', requireAuth, deviceRoutes.router);
+app.use('/api/schedules', requireAuth, scheduleRoutes.router);
+app.use('/api', requireAuth, automationRoutes.router);
 
 // -------------------------------------------------------------
 // WebSocket Handler dengan Autentikasi Ketat
@@ -422,7 +429,7 @@ wss.on('connection', (ws, req) => {
 
     if (boundDeviceId) {
       console.log(`[WS] Perangkat hardware ${boundDeviceId} terputus`);
-      const offlineDev = deviceManager.setDeviceOffline(boundDeviceId);
+      const offlineDev = deviceManager.setDeviceOffline(boundDeviceId, ws);
       if (offlineDev) {
         broadcastToBrowsers({
           type: 'DEVICE_UPDATE',

@@ -191,8 +191,8 @@ class AutomationEngine {
     });
 
     let updatedDev = null;
-    if (this.deviceManager) {
-      updatedDev = this.deviceManager.updateComponentState(rule.actionDeviceId, rule.actionComponentId, actionValue);
+    if (this._deviceManager) {
+      updatedDev = this._deviceManager.updateComponentState(rule.actionDeviceId, rule.actionComponentId, actionValue);
     }
 
     // Siarkan notifikasi real-time ke semua browser

@@ -141,6 +141,11 @@ module.exports = {
     return this.getDevice(deviceId);
   },
 
+  ensureDeviceExists(deviceId) {
+    if (!deviceId) return null;
+    return this.preRegisterDevice(deviceId);
+  },
+
   upsertRelay(deviceId, channel, name, state) {
     const stmt = this.db.prepare(`
       INSERT INTO relays (deviceId, channel, name, state)

@@ -34,6 +34,8 @@ module.exports = {
   },
 
   addAutomation(data) {
+    if (data.triggerDeviceId) this.ensureDeviceExists(data.triggerDeviceId);
+    if (data.actionDeviceId) this.ensureDeviceExists(data.actionDeviceId);
     const id = data.id || ('auto_' + crypto.randomBytes(6).toString('hex'));
     const stmt = this.db.prepare(`
       INSERT INTO automations (

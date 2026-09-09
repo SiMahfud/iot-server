@@ -52,15 +52,18 @@ class AuthManager {
     const parts = token.split('.');
     if (parts.length !== 2) return null;
 
-    const [encodedPayload, signature] = parts;
-    const expectedSig = crypto.createHmac('sha256', this.secret).update(encodedPayload).digest('base64url');
-
-    // Hindari timing attack
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
-      return null;
-    }
-
     try {
+      const [encodedPayload, signature] = parts;
+      const expectedSig = crypto.createHmac('sha256', this.secret).update(encodedPayload).digest('base64url');
+
+      const sigBuf = Buffer.from(signature);
+      const expBuf = Buffer.from(expectedSig);
+
+      // Hindari timing attack dan cegah RangeError jika panjang buffer berbeda
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        return null;
+      }
+
       const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
       if (Date.now() > payload.exp) {
         return null; // Token kedaluwarsa

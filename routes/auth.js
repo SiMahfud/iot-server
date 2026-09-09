@@ -12,19 +12,23 @@ let auth; // Injected via init()
  * Middleware: Autentikasi REST API via Bearer Token
  */
 function requireAuth(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader) {
-    return res.status(401).json({ success: false, message: 'Autentikasi dibutuhkan' });
-  }
+  try {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) {
+      return res.status(401).json({ success: false, message: 'Autentikasi dibutuhkan' });
+    }
 
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  const payload = auth.verifyToken(token);
-  if (!payload) {
-    return res.status(403).json({ success: false, message: 'Token tidak valid atau kedaluwarsa' });
-  }
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    const payload = auth.verifyToken(token);
+    if (!payload) {
+      return res.status(403).json({ success: false, message: 'Token tidak valid atau kedaluwarsa' });
+    }
 
-  req.user = payload;
-  next();
+    req.user = payload;
+    next();
+  } catch (err) {
+    return res.status(403).json({ success: false, message: 'Autentikasi gagal' });
+  }
 }
 
 // 1. Login (mendukung /auth/login dan /login)
@@ -60,8 +64,8 @@ router.get(['/auth/check', '/verify', '/auth/verify'], (req, res) => {
 router.post(['/auth/change-password', '/user/password'], requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  if (currentPassword && !auth.verifyLogin(req.user.u, currentPassword)) {
-    return res.status(400).json({ success: false, message: 'Password saat ini salah!' });
+  if (!currentPassword || !auth.verifyLogin(req.user.u, currentPassword)) {
+    return res.status(400).json({ success: false, message: 'Password saat ini salah atau belum diisi!' });
   }
 
   if (!newPassword || newPassword.length < 6) {

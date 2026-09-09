@@ -68,12 +68,7 @@ function init(deps) {
   db = deps.db;
   requireAuth = deps.requireAuth;
 
-  // Apply requireAuth to all routes (except component-types yang publik)
-  router.use((req, res, next) => {
-    // /component-types tidak perlu auth
-    if (req.path === '/component-types') return next();
-    requireAuth(req, res, next);
-  });
+  // Auth sekarang diterapkan di level mount server.js (dengan pengecualian /component-types)
 }
 
 module.exports = { router, init };

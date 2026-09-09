@@ -243,7 +243,15 @@ class DeviceManager {
     return dev;
   }
 
-  setDeviceOffline(deviceId) {
+  setDeviceOffline(deviceId, ws = null) {
+    // Cegah false-offline: jika hardware sudah reconnect dengan socket baru,
+    // jangan tandai offline saat socket lama baru mengirim event close
+    const currentSocket = this.sockets.get(deviceId);
+    if (ws && currentSocket && currentSocket !== ws) {
+      console.log(`[WS] Mengabaikan close event socket lama untuk ${deviceId} (sudah reconnect)`);
+      return null;
+    }
+
     this.sockets.delete(deviceId);
     if (this.devices[deviceId]) {
       const now = new Date().toISOString();

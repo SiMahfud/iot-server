@@ -278,11 +278,11 @@ class SchedulerManager {
 
     // Sinkronkan state perangkat secara instan
     let updatedDev = null;
-    if (this.deviceManager) {
+    if (this._deviceManager) {
       if (compId) {
-        updatedDev = this.deviceManager.updateComponentState(schedule.deviceId, compId, state);
+        updatedDev = this._deviceManager.updateComponentState(schedule.deviceId, compId, state);
       } else {
-        updatedDev = this.deviceManager.updateComponentState(schedule.deviceId, `relay_${schedule.channel}`, state);
+        updatedDev = this._deviceManager.updateComponentState(schedule.deviceId, `relay_${schedule.channel}`, state);
       }
     }
 

@@ -292,8 +292,7 @@ function init(deps) {
   broadcastToBrowsers = deps.broadcastToBrowsers;
   requireAuth = deps.requireAuth;
 
-  // Apply requireAuth to all routes
-  router.use(requireAuth);
+  // Auth sekarang diterapkan di level mount server.js (app.use('/api', requireAuth, ...))
 }
 
 module.exports = { router, init };

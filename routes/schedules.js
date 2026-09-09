@@ -17,10 +17,10 @@ router.get('/', (req, res) => {
 
 // Tambah jadwal baru
 router.post('/', (req, res) => {
-  const { deviceId, channel, action, time, days, label, duration } = req.body;
+  const { deviceId, channel, componentId, action, time, days, label, duration, targetValue } = req.body;
 
-  if (!deviceId || !channel || !time) {
-    return res.status(400).json({ success: false, message: 'deviceId, channel, dan time wajib diisi' });
+  if (!deviceId || !time || (!channel && !componentId)) {
+    return res.status(400).json({ success: false, message: 'deviceId, time, dan channel atau componentId wajib diisi' });
   }
 
   // Validasi format time HH:MM
@@ -28,7 +28,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ success: false, message: 'Format waktu harus HH:MM' });
   }
 
-  const schedule = schedulerManager.addSchedule({ deviceId, channel, action, time, days, label, duration });
+  const schedule = schedulerManager.addSchedule({ deviceId, channel, componentId, action, time, days, label, duration, targetValue });
   broadcastToBrowsers({ type: 'SCHEDULES_UPDATE', schedules: schedulerManager.getSchedules() });
   res.json({ success: true, data: schedule });
 });
@@ -73,8 +73,7 @@ function init(deps) {
   broadcastToBrowsers = deps.broadcastToBrowsers;
   requireAuth = deps.requireAuth;
 
-  // Apply requireAuth to all routes
-  router.use(requireAuth);
+  // Auth sekarang diterapkan di level mount server.js (app.use('/api/schedules', requireAuth, ...))
 }
 
 module.exports = { router, init };

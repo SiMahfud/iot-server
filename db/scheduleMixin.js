@@ -54,6 +54,9 @@ module.exports = {
   },
 
   addSchedule(s) {
+    if (s.deviceId) {
+      this.ensureDeviceExists(s.deviceId);
+    }
     const componentId = s.componentId || (s.channel ? `relay_${s.channel}` : null);
     const stmt = this.db.prepare(`
       INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, targetValue, createdAt)
@@ -160,17 +163,19 @@ module.exports = {
       const schedules = Array.isArray(parsed.schedules) ? parsed.schedules : [];
 
       const insertOrUpdate = this.db.prepare(`
-        INSERT INTO schedules (id, deviceId, channel, action, time, days, duration, enabled, label, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, targetValue, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           deviceId = excluded.deviceId,
+          componentId = excluded.componentId,
           channel = excluded.channel,
           action = excluded.action,
           time = excluded.time,
           days = excluded.days,
           duration = excluded.duration,
           enabled = excluded.enabled,
-          label = excluded.label
+          label = excluded.label,
+          targetValue = excluded.targetValue
       `);
 
       const jsonIds = schedules.map(s => s.id).filter(Boolean);
@@ -184,17 +189,22 @@ module.exports = {
         }
 
         for (const s of schedules) {
+          const devId = s.deviceId || 'wemos-relay-01';
+          this.ensureDeviceExists(devId);
           const schedId = s.id || ('sch_' + crypto.randomBytes(6).toString('hex'));
+          const componentId = s.componentId || (s.channel ? `relay_${s.channel}` : null);
           insertOrUpdate.run(
             schedId,
-            s.deviceId || 'wemos-relay-01',
-            parseInt(s.channel) || 1,
+            devId,
+            componentId,
+            parseInt(s.channel) || (componentId && /^relay_\d+$/i.test(componentId) ? parseInt(componentId.replace(/\D/g, '')) : 0),
             s.action || 'on',
             s.time,
             JSON.stringify(s.days || []),
             parseInt(s.duration) || 0,
             s.enabled !== false ? 1 : 0,
-            s.label || `Jadwal Relay #${s.channel}`,
+            s.label || (componentId ? `Jadwal ${componentId}` : `Jadwal Relay #${s.channel}`),
+            s.targetValue !== undefined ? String(s.targetValue) : '',
             s.createdAt || new Date().toISOString()
           );
         }

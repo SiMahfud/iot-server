@@ -187,12 +187,22 @@ function handleWsMessage(msg) {
       const existing = state.devices[devId];
       const prevCompCount = existing ? (existing.components || []).length : 0;
       const newCompCount = (updatedDev.components || []).length;
+      const prevIsOnline = existing ? existing.isOnline : null;
 
       // Merge data perangkat ke state
       state.devices[devId] = { ...(existing || {}), ...updatedDev };
 
       if (!state.activeDeviceId) {
         state.activeDeviceId = devId;
+      }
+
+      // Deteksi perubahan status online/offline → update header badge & dropdown
+      const statusChanged = prevIsOnline !== null && prevIsOnline !== updatedDev.isOnline;
+      if (statusChanged) {
+        state.emit('devicesChange', state.devices);
+        if (devId === state.activeDeviceId) {
+          state.emit('deviceSelect', devId);
+        }
       }
 
       if (devId === state.activeDeviceId) {

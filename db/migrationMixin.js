@@ -79,38 +79,7 @@ module.exports = {
     // 2. Migrasi Schedules dari schedules.json jika tabel schedules masih kosong
     const schedCount = this.db.prepare('SELECT COUNT(*) as count FROM schedules').get().count;
     if (schedCount === 0 && fs.existsSync(SCHEDULES_JSON)) {
-      try {
-        const raw = fs.readFileSync(SCHEDULES_JSON, 'utf8');
-        const parsed = JSON.parse(raw);
-        const schedules = Array.isArray(parsed.schedules) ? parsed.schedules : [];
-
-        const insertSched = this.db.prepare(`
-          INSERT INTO schedules (id, deviceId, channel, action, time, days, duration, enabled, label, createdAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        const migrateSchedTransaction = this.db.transaction(() => {
-          for (const s of schedules) {
-            insertSched.run(
-              s.id,
-              s.deviceId,
-              s.channel,
-              s.action || 'on',
-              s.time,
-              JSON.stringify(s.days || []),
-              s.duration || 0,
-              s.enabled !== false ? 1 : 0,
-              s.label || `Jadwal Relay #${s.channel}`,
-              s.createdAt || new Date().toISOString()
-            );
-          }
-        });
-
-        migrateSchedTransaction();
-        console.log(`[SQLITE] Sukses migrasi ${schedules.length} jadwal dari schedules.json ke SQLite`);
-      } catch (err) {
-        console.error('[SQLITE] Gagal migrasi schedules.json:', err.message);
-      }
+      this.importSchedulesFromJson();
     }
 
     // 3. Inisialisasi Kredensial User dari config.json jika tabel users masih kosong
