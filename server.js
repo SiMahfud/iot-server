@@ -381,20 +381,63 @@ wss.on('connection', (ws, req) => {
               targetSocket.send(JSON.stringify(msg));
             }
             console.log(`[KONTROL] Teruskan 'set_all' (state: ${stateBool}) ke hardware ${targetId}`);
+
+            const stateText = stateBool ? 'dinyalakan' : 'dimatikan';
+            const countInfo = (dev && Array.isArray(dev.components) && dev.components.length > 0)
+              ? ` (${dev.components.filter(c => CONTROLLABLE.has(c.type) || CONTROLLABLE.has(c.driver)).length} saklar)`
+              : (dev && Array.isArray(dev.relays) && dev.relays.length > 0 ? ` (${dev.relays.length} relay)` : '');
+            db.addLog(targetId, 'control_set_all', {
+              action: stateBool ? 'all_on' : 'all_off',
+              state: stateBool,
+              message: `Semua saklar${countInfo} ${stateText}`
+            });
+          } else if (msg.action === 'set_component') {
+            const dev = deviceManager.getDevice(targetId);
+            const comp = dev && Array.isArray(dev.components) ? dev.components.find(c => c.id === msg.componentId || c.componentId === msg.componentId) : null;
+            const compName = comp ? comp.name : (msg.componentId || 'Komponen');
+            const val = msg.value !== undefined ? msg.value : msg.state;
+            const stateText = (val === true || val === 'true' || val === 1 || val === '1') ? 'ON' : ((val === false || val === 'false' || val === 0 || val === '0') ? 'OFF' : String(val));
+            const durationInfo = msg.duration ? ` (timer: ${msg.duration}s)` : '';
+
+            targetSocket.send(JSON.stringify(msg));
+            console.log(`[KONTROL] Teruskan 'set_component' ke hardware ${targetId}${durationInfo}`);
+
+            db.addLog(targetId, 'control_set_component', {
+              componentId: msg.componentId,
+              name: compName,
+              value: val,
+              state: val,
+              duration: msg.duration || null,
+              message: `${compName} (${msg.componentId}) diubah ke ${stateText}${msg.duration ? ` (Timer: ${msg.duration} detik)` : ''}`
+            });
+          } else if (msg.action === 'set_relay') {
+            const ch = msg.channel || 1;
+            const stateBool = Boolean(msg.state);
+            const durationInfo = msg.duration ? ` (timer: ${msg.duration}s)` : '';
+
+            targetSocket.send(JSON.stringify(msg));
+            console.log(`[KONTROL] Teruskan 'set_relay' ke hardware ${targetId}${durationInfo}`);
+
+            db.addLog(targetId, 'control_set_relay', {
+              channel: ch,
+              state: stateBool,
+              duration: msg.duration || null,
+              message: `Relay #${ch} diubah ke ${stateBool ? 'ON' : 'OFF'}${msg.duration ? ` (Timer: ${msg.duration} detik)` : ''}`
+            });
           } else {
             // Teruskan pesan ke hardware termasuk field 'duration' jika ada (untuk timer countdown)
             targetSocket.send(JSON.stringify(msg));
             const durationInfo = msg.duration ? ` (timer: ${msg.duration}s)` : '';
             console.log(`[KONTROL] Teruskan '${msg.action}' ke hardware ${targetId}${durationInfo}`);
-          }
 
-          db.addLog(targetId, 'control_' + msg.action, {
-            componentId: msg.componentId || null,
-            channel: msg.channel || null,
-            pin: msg.pin || null,
-            state: msg.state !== undefined ? msg.state : (msg.value !== undefined ? msg.value : null),
-            duration: msg.duration || null
-          });
+            db.addLog(targetId, 'control_' + msg.action, {
+              componentId: msg.componentId || null,
+              channel: msg.channel || null,
+              pin: msg.pin || null,
+              state: msg.state !== undefined ? msg.state : (msg.value !== undefined ? msg.value : null),
+              duration: msg.duration || null
+            });
+          }
         } else {
           ws.send(JSON.stringify({
             type: 'NOTIFICATION',
@@ -441,7 +484,7 @@ wss.on('connection', (ws, req) => {
           };
           targetSocket.send(JSON.stringify(outMsg));
           console.log(`[KONTROL] Teruskan 'cancel_timer' komponen ${compId} ke ${targetId}`);
-          db.addLog(targetId, 'control_cancel_timer', { componentId: compId, channel: msg.channel });
+          db.addLog(targetId, 'control_cancel_timer', { componentId: compId, channel: msg.channel || null, message: `Timer countdown untuk ${compId || 'Relay #' + msg.channel} dibatalkan` });
         } else {
           ws.send(JSON.stringify({
             type: 'NOTIFICATION',
