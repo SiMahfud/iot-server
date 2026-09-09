@@ -177,31 +177,39 @@ function handleWsMessage(msg) {
     return;
   }
 
-  // Full Device Update (telemetri dari hardware / add/delete komponen via REST API)
+  // Full Device Update (telemetri dari hardware / add/delete komponen via REST API / kontrol saklar)
   if (msg.type === 'DEVICE_UPDATE') {
     const updatedDev = msg.device || msg.data;
-    if (updatedDev && updatedDev.id) {
-      const existing = state.devices[updatedDev.id];
+    const devId = updatedDev ? (updatedDev.deviceId || updatedDev.id) : null;
+    if (updatedDev && devId) {
+      updatedDev.deviceId = devId;
+      updatedDev.id = devId;
+      const existing = state.devices[devId];
       const prevCompCount = existing ? (existing.components || []).length : 0;
       const newCompCount = (updatedDev.components || []).length;
 
       // Merge data perangkat ke state
-      state.devices[updatedDev.id] = { ...(existing || {}), ...updatedDev };
+      state.devices[devId] = { ...(existing || {}), ...updatedDev };
 
-      if (updatedDev.id === state.activeDeviceId) {
+      if (!state.activeDeviceId) {
+        state.activeDeviceId = devId;
+      }
+
+      if (devId === state.activeDeviceId) {
         if (prevCompCount !== newCompCount) {
           // Struktur berubah (tambah/hapus modul) → full re-render
-          state.emit('componentsChange', { deviceId: updatedDev.id, components: updatedDev.components || [] });
+          state.emit('componentsChange', { deviceId: devId, components: updatedDev.components || [] });
         } else {
           // Hanya nilai berubah → micro-update DOM via telemetryUpdate event
           const telemetryData = {};
           (updatedDev.components || []).forEach(c => {
-            if (c.id && c.value !== undefined) {
-              telemetryData[c.id] = c.value;
+            const cId = c.id || c.componentId;
+            if (cId && c.value !== undefined) {
+              telemetryData[cId] = c.value;
             }
           });
           state.emit('telemetryUpdate', {
-            deviceId: updatedDev.id,
+            deviceId: devId,
             data: telemetryData,
             payload: updatedDev
           });

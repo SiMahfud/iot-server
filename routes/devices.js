@@ -192,6 +192,12 @@ router.post('/devices/:deviceId/components/:componentId/control', (req, res) => 
     };
     targetSocket.send(JSON.stringify(msg));
     db.addLog(deviceId, 'rest_control_component', { componentId, value, duration });
+
+    const updated = deviceManager.updateComponentState(deviceId, componentId, value);
+    if (updated) {
+      broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
+    }
+
     res.json({ success: true, message: `Command sent to ${deviceId}/${componentId}` });
   } else {
     res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });

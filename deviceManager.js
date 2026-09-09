@@ -12,6 +12,9 @@ class DeviceManager {
       // Saat server baru menyala, set status awal semua device ke offline di database sampai mereka connect ulang
       db.setAllDevicesOffline();
       this.devices = db.getAllDevices();
+      Object.values(this.devices).forEach(d => {
+        d.id = d.deviceId;
+      });
       console.log(`[STATE-DB] Berhasil memuat ${Object.keys(this.devices).length} perangkat dari database SQLite`);
     } catch (err) {
       console.error('[STATE-DB] Gagal memuat state dari SQLite:', err.message);
@@ -47,9 +50,11 @@ class DeviceManager {
         relays: [],
         components: []
       };
+      this.devices[deviceId].id = deviceId;
       db.upsertDevice(this.devices[deviceId]);
       db.addLog(deviceId, 'device_registered', `Perangkat modular ${deviceId} terdaftar (DynamicPins: ${isDynamic ? 'Ya' : 'Tidak'})`);
     } else {
+      this.devices[deviceId].id = deviceId;
       this.devices[deviceId].isOnline = true;
       this.devices[deviceId].dynamicPins = isDynamic;
       this.devices[deviceId].uptime = info.uptime || this.devices[deviceId].uptime;
@@ -102,6 +107,7 @@ class DeviceManager {
     if (!dev) return null;
 
     const now = new Date().toISOString();
+    dev.id = deviceId;
     dev.isOnline = true;
     dev.uptime = payload.uptime || dev.uptime;
     dev.rssi = payload.rssi || dev.rssi;
@@ -457,10 +463,94 @@ class DeviceManager {
   }
 
   getDevice(deviceId) {
-    return this.devices[deviceId] || null;
+    const dev = this.devices[deviceId] || null;
+    if (dev) dev.id = dev.deviceId;
+    return dev;
+  }
+
+  // Update nilai komponen dan sinkronkan ke memory + database secara instan
+  updateComponentState(deviceId, componentId, value) {
+    const dev = this.devices[deviceId];
+    if (!dev) return null;
+
+    const valStr = (typeof value === 'object' && value !== null) ? JSON.stringify(value) : String(value);
+    const now = new Date().toISOString();
+    dev.id = deviceId;
+
+    // 1. Sinkronisasi array in-memory
+    if (Array.isArray(dev.components)) {
+      const c = dev.components.find(x => x.id === componentId || x.componentId === componentId);
+      if (c) {
+        c.value = valStr;
+        c.updatedAt = now;
+      }
+    }
+
+    // 2. Simpan ke database SQLite
+    db.updateComponentValue(deviceId, componentId, valStr, now);
+
+    // 3. Jika saklar relay_X, sinkronkan ke array relays & tabel relays
+    if (/^relay_\d+$/i.test(componentId)) {
+      const ch = parseInt(componentId.replace(/\D/g, '')) || 1;
+      const stateBool = valStr === 'true' || valStr === '1';
+      db.updateRelayState(deviceId, ch, stateBool);
+      if (Array.isArray(dev.relays)) {
+        const r = dev.relays.find(x => x.channel === ch);
+        if (r) r.state = stateBool;
+      }
+    }
+
+    // 4. Evaluasi aturan otomasi jika ada
+    try {
+      const autoEngine = require('./automationEngine');
+      if (autoEngine && typeof autoEngine.evaluate === 'function') {
+        autoEngine.evaluate(deviceId, componentId, value);
+      }
+    } catch (e) {}
+
+    return dev;
+  }
+
+  // Nyalakan / Matikan semua saklar dan komponen yang dapat dikontrol
+  setAllComponentsState(deviceId, stateBool) {
+    const dev = this.devices[deviceId];
+    if (!dev) return null;
+
+    const valStr = String(stateBool);
+    const now = new Date().toISOString();
+    dev.id = deviceId;
+    const CONTROLLABLE = new Set(['switch', 'dimmer', 'servo', 'buzzer', 'rgb_led']);
+
+    if (Array.isArray(dev.components)) {
+      dev.components.forEach(c => {
+        if (CONTROLLABLE.has(c.type) || CONTROLLABLE.has(c.driver)) {
+          if (c.type === 'dimmer') {
+            c.value = stateBool ? '100' : '0';
+          } else if (c.type === 'servo') {
+            c.value = stateBool ? '90' : '0';
+          } else {
+            c.value = valStr;
+          }
+          c.updatedAt = now;
+          db.updateComponentValue(deviceId, c.id || c.componentId, c.value, now);
+        }
+      });
+    }
+
+    if (Array.isArray(dev.relays)) {
+      dev.relays.forEach(r => {
+        r.state = stateBool;
+        db.updateRelayState(deviceId, r.channel, stateBool);
+      });
+    }
+
+    return dev;
   }
 
   getAll() {
+    Object.values(this.devices).forEach(d => {
+      d.id = d.deviceId;
+    });
     return this.devices;
   }
 }

@@ -323,6 +323,24 @@ wss.on('connection', (ws, req) => {
             message: `Perangkat ${targetId} sedang offline!`
           }));
         }
+
+        // Sinkronkan state lokal & siarkan perubahan secara real-time ke semua dashboard browser
+        let updatedDev = null;
+        if (msg.action === 'set_component') {
+          const val = msg.value !== undefined ? msg.value : msg.state;
+          updatedDev = deviceManager.updateComponentState(targetId, msg.componentId, val);
+        } else if (msg.action === 'set_all') {
+          updatedDev = deviceManager.setAllComponentsState(targetId, Boolean(msg.state));
+        } else if (msg.action === 'set_relay') {
+          updatedDev = deviceManager.updateComponentState(targetId, `relay_${msg.channel}`, Boolean(msg.state));
+        }
+
+        if (updatedDev) {
+          broadcastToBrowsers({
+            type: 'DEVICE_UPDATE',
+            device: updatedDev
+          });
+        }
       }
 
       // 3b. Perintah Batalkan Timer Countdown

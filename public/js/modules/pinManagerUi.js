@@ -111,8 +111,9 @@ export function initPinManagerUi() {
       .then(res => {
         if (res.success) {
           // Sync state lokal langsung dari response (tidak perlu tunggu WS broadcast)
-          if (res.data && res.data.id) {
-            state.devices[res.data.id] = { ...(state.devices[res.data.id] || {}), ...res.data };
+          const targetDevId = res.data ? (res.data.deviceId || res.data.id) : null;
+          if (targetDevId) {
+            state.devices[targetDevId] = { ...(state.devices[targetDevId] || {}), ...res.data, deviceId: targetDevId, id: targetDevId };
           }
           showToast(`Komponen "${name}" berhasil ditambahkan!`);
           formAddPin.reset();

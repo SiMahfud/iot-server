@@ -190,8 +190,16 @@ class AutomationEngine {
       executedPayload: payload
     });
 
+    let updatedDev = null;
+    if (this.deviceManager) {
+      updatedDev = this.deviceManager.updateComponentState(rule.actionDeviceId, rule.actionComponentId, actionValue);
+    }
+
     // Siarkan notifikasi real-time ke semua browser
     if (this._broadcastFn) {
+      if (updatedDev) {
+        this._broadcastFn({ type: 'DEVICE_UPDATE', device: updatedDev });
+      }
       this._broadcastFn({
         type: 'AUTOMATION_TRIGGERED',
         ruleId: rule.id,

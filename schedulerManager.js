@@ -276,8 +276,21 @@ class SchedulerManager {
     // Catat ke log aktivitas SQLite
     db.addLog(schedule.deviceId, 'schedule_executed', `Jadwal "${schedule.label}" dieksekusi: Saklar #${schedule.channel} -> ${state ? 'ON' : 'OFF'}${durationInfo}`);
 
+    // Sinkronkan state perangkat secara instan
+    let updatedDev = null;
+    if (this.deviceManager) {
+      if (compId) {
+        updatedDev = this.deviceManager.updateComponentState(schedule.deviceId, compId, state);
+      } else {
+        updatedDev = this.deviceManager.updateComponentState(schedule.deviceId, `relay_${schedule.channel}`, state);
+      }
+    }
+
     // Broadcast notifikasi ke semua browser
     if (this._broadcastFn) {
+      if (updatedDev) {
+        this._broadcastFn({ type: 'DEVICE_UPDATE', device: updatedDev });
+      }
       this._broadcastFn({
         type: 'NOTIFICATION',
         level: 'info',

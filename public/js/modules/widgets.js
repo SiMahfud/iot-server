@@ -41,24 +41,28 @@ export function triggerComponent(componentId, value, duration = 0) {
         comp._timerUntil = Date.now() + duration * 1000;
       }
       // Micro-update: update toggle di DOM tanpa full re-render
-      _updateSwitchDom(componentId, comp.value);
+      updateSwitchDom(componentId, comp.value);
     }
   }
 }
 
 // Update DOM saklar secara langsung tanpa re-render seluruh grid
-function _updateSwitchDom(componentId, newValue) {
+export function updateSwitchDom(componentId, newValue) {
   const card = document.getElementById(`comp-widget-${componentId}`);
   if (!card) return;
 
   const isOn = newValue === 'true' || newValue === true || newValue === '1';
   const chk = card.querySelector('input[type="checkbox"]');
   const statusText = card.querySelector('[data-status-text]') || card.querySelector('span[style*="font-weight: 700"]');
+  const footerSpan = card.querySelector('.comp-footer span:last-child');
 
   if (chk) chk.checked = isOn;
   if (statusText) {
     statusText.textContent = isOn ? 'MENYALA (ON)' : 'MATI (OFF)';
     statusText.style.color = isOn ? 'var(--primary-glow)' : 'var(--text-muted)';
+  }
+  if (footerSpan) {
+    footerSpan.textContent = isOn ? 'ACTIVE' : 'STANDBY';
   }
   if (isOn) {
     card.classList.add('active');
@@ -662,6 +666,38 @@ export function updateLiveTelemetryDom(data) {
     // Sensor metric
     const sensorEl = document.getElementById(`sensor-val-${compId}`);
     if (sensorEl) sensorEl.textContent = String(val);
+
+    // Saklar / Switch
+    updateSwitchDom(compId, val);
+
+    // Dimmer
+    const dimLabel = document.getElementById(`dim-text-${compId}`);
+    const dimCard = document.getElementById(`comp-widget-${compId}`);
+    if (dimLabel && dimCard) {
+      const slider = dimCard.querySelector('input[type="range"]');
+      const numVal = parseInt(val) || 0;
+      if (slider && document.activeElement !== slider) slider.value = numVal;
+      dimLabel.textContent = `${numVal}%`;
+    }
+
+    // Servo
+    const servoLabel = document.getElementById(`servo-val-${compId}`);
+    const servoCard = document.getElementById(`comp-widget-${compId}`);
+    if (servoLabel && servoCard) {
+      const slider = servoCard.querySelector('input[type="range"]');
+      const numVal = parseInt(val) || 0;
+      if (slider && document.activeElement !== slider) slider.value = numVal;
+      servoLabel.textContent = `${numVal}°`;
+    }
+
+    // RGB LED
+    const rgbCard = document.getElementById(`comp-widget-${compId}`);
+    const rgbLabel = document.getElementById(`rgb-hex-${compId}`);
+    if (rgbCard && rgbLabel && typeof val === 'string' && val.startsWith('#')) {
+      const colorPicker = rgbCard.querySelector('input[type="color"]');
+      if (colorPicker && document.activeElement !== colorPicker) colorPicker.value = val;
+      rgbLabel.textContent = val;
+    }
 
     // MPU6050 3D box & metrics
     const mpuBox = document.getElementById(`mpu-box-${compId}`);
