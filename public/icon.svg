@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0d14"/>
+      <stop offset="100%" stop-color="#161f30"/>
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#10b981" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background Box with Rounded Corners -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+
+  <!-- Glowing Accent Ring -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(16,185,129,0.15)" stroke-width="12" stroke-dasharray="16 12"/>
+
+  <!-- Lightning Bolt Icon -->
+  <polygon points="280,72 136,272 264,272 232,440 376,240 248,240" fill="url(#boltGrad)" filter="url(#glow)"/>
+</svg>

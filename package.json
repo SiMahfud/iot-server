@@ -1,0 +1,16 @@
+{
+  "name": "iot-relay-server",
+  "version": "1.0.0",
+  "description": "Node.js WebSocket Server & PWA Dashboard for Wemos D1 Mini 4-Channel Relay",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "ws": "^8.18.0"
+  }
+}

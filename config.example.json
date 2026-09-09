@@ -1,0 +1,16 @@
+{
+  "server": {
+    "port": 3050,
+    "wsPath": "/ws"
+  },
+  "auth": {
+    "username": "admin",
+    "password": "change_this_admin_password",
+    "deviceSecret": "wemos-secret-key-3377",
+    "tokenSecret": "default-random-secret-key-998877"
+  },
+  "iot": {
+    "deviceTimeoutMs": 45000,
+    "pingIntervalMs": 15000
+  }
+}

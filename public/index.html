@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Smart Switch | IoT Controller Dashboard</title>
+  <meta name="description" content="Aplikasi PWA Kontrol Otomatis Relays & Perangkat IoT Multi-Device">
+  <meta name="theme-color" content="#080b11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=3.0">
+</head>
+<body>
+  <!-- ==========================================
+       1. Login Screen (Ditampilkan jika belum login)
+  ========================================== -->
+  <div id="loginScreen" class="login-wrapper">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="brand-icon lg">
+          <svg viewBox="0 0 24 24" width="32" height="32" stroke="currentColor" stroke-width="2" fill="none">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <h1 class="login-title">Akses Smart Switch</h1>
+        <p class="login-desc">Masukkan kredensial administrator Anda</p>
+      </div>
+
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="loginUser" class="form-label">Username</label>
+          <input type="text" id="loginUser" class="form-input" placeholder="admin" value="admin" required autocomplete="username">
+        </div>
+
+        <div class="form-group">
+          <label for="loginPass" class="form-label">Password</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="loginPass" class="form-input" placeholder="Password" required autocomplete="current-password">
+            <button type="button" id="btnTogglePass" class="btn-toggle-eye" title="Lihat password">
+              <svg id="eyeIcon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="loginErrorMsg" class="error-msg hidden">Username atau password salah</div>
+
+        <button type="submit" id="btnLoginSubmit" class="btn-login">
+          <span>Masuk ke Dashboard</span>
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       2. Dashboard Utama (Setelah Login)
+  ========================================== -->
+  <div id="dashboardApp" class="app-container hidden">
+    <!-- Sticky Top Header -->
+    <header class="top-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Smart Switch</h1>
+          <p class="brand-subtitle">IoT Multi-Device Hub</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <div id="serverStatusBadge" class="status-pill offline" title="Status Server WebSocket">
+          <span class="status-dot"></span>
+          <span class="status-text">Server</span>
+        </div>
+        <div id="hardwareStatusBadge" class="status-pill offline" title="Status Koneksi Wemos">
+          <span class="status-dot hw"></span>
+          <span id="hardwareStatusText" class="status-text">Hardware</span>
+        </div>
+        <button id="btnLogout" class="btn-icon-action" title="Keluar">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Quick Stats Banner -->
+    <section class="quick-stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper active-glow">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div class="stat-details">
+          <span class="stat-value" id="statActiveRelays">0/4</span>
+          <span class="stat-label">Relay Aktif</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper sched-glow">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <div class="stat-details">
+          <span class="stat-value" id="statActiveSchedules">0</span>
+          <span class="stat-label">Jadwal Aktif</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper wifi-glow">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+        </div>
+        <div class="stat-details">
+          <span class="stat-value" id="wifiRssi">-- dBm</span>
+          <span class="stat-label">Sinyal WiFi</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper ping-glow">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div class="stat-details">
+          <span class="stat-value" id="pingDisplay">~ ms</span>
+          <span class="stat-label">Latensi Web</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Device Selector Bar -->
+    <section class="device-bar">
+      <div class="device-bar-left">
+        <span class="device-bar-label">Perangkat:</span>
+        <select id="deviceSelect" class="device-dropdown">
+          <option value="wemos-relay-01">Memuat Perangkat...</option>
+        </select>
+      </div>
+      <div class="device-bar-right">
+        <span id="deviceIdBadge" class="device-id-badge">wemos-relay-01</span>
+        <button id="btnOpenPinManager" class="btn-manage-pins" type="button" title="Atur Pin GPIO & Sensor Tanpa Flash Ulang">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Atur Pin & Sensor</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 1: KONTROL (Relay & Master & Scenes)
+    ========================================== -->
+    <main id="tabKontrol" class="tab-view active">
+      <!-- Quick Scenes -->
+      <section class="quick-scenes-section">
+        <div class="section-title-sm">
+          <span>⚡ Skenario Cepat</span>
+        </div>
+        <div class="scenes-grid">
+          <button id="btnSceneWater10" class="scene-card" type="button">
+            <div class="scene-icon">🚿</div>
+            <div class="scene-text">
+              <span class="scene-name">Siram 10m</span>
+              <span class="scene-desc">Relay 1 Otomatis Mati</span>
+            </div>
+          </button>
+          <button id="btnSceneWater15" class="scene-card" type="button">
+            <div class="scene-icon">💧</div>
+            <div class="scene-text">
+              <span class="scene-name">Siram 15m</span>
+              <span class="scene-desc">Relay 1 Otomatis Mati</span>
+            </div>
+          </button>
+          <button id="btnSceneAllOff" class="scene-card danger" type="button">
+            <div class="scene-icon">🛑</div>
+            <div class="scene-text">
+              <span class="scene-name">Matikan Semua</span>
+              <span class="scene-desc">Standby Aman</span>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Master Controls -->
+      <section class="master-section">
+        <button id="btnAllOn" class="btn-master btn-all-on" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+          <span>Nyalakan Semua</span>
+        </button>
+        <button id="btnAllOff" class="btn-master btn-all-off" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+          </svg>
+          <span>Matikan Semua</span>
+        </button>
+      </section>
+
+      <!-- Relays Grid -->
+      <section class="relays-grid" id="relaysGrid">
+        <!-- Di-render dinamis oleh app.js -->
+      </section>
+
+      <!-- Modular Sensors & Dynamic Components Grid -->
+      <section class="components-section" id="componentsSection">
+        <div class="section-header-row">
+          <div class="section-title-sm">
+            <span>📊 Sensor & Komponen Dinamis</span>
+          </div>
+          <button id="btnQuickAddPin" class="btn-text-action" type="button">
+            + Tambah Sensor / Pin
+          </button>
+        </div>
+        <div class="components-grid" id="componentsGrid">
+          <!-- Di-render dinamis oleh app.js -->
+        </div>
+      </section>
+
+      <!-- Device Telemetry Summary Card -->
+      <section class="device-card-compact">
+        <div class="telemetry-compact-row">
+          <div class="telemetry-col">
+            <span class="telem-label">Nama Perangkat</span>
+            <div class="telem-val-wrap">
+              <span id="deviceName" class="telem-val-text">Wemos D1 Mini</span>
+              <button id="btnRenameDevice" class="btn-icon-xs" title="Ubah Nama">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="telemetry-col">
+            <span class="telem-label">Uptime Wemos</span>
+            <span id="uptimeDisplay" class="telem-val-text font-mono">00:00:00</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==========================================
+         TAB 2: JADWAL & TIMER
+    ========================================== -->
+    <main id="tabJadwal" class="tab-view hidden">
+      <!-- Segmented Sub Tabs: Countdown vs Jadwal -->
+      <div class="segmented-control">
+        <button id="subTabJadwalBtn" class="seg-btn active" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>Jadwal Otomatis</span>
+        </button>
+        <button id="subTabTimerBtn" class="seg-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>Timer Countdown</span>
+        </button>
+      </div>
+
+      <!-- Subview: Jadwal Otomatis -->
+      <section id="subViewJadwal" class="sub-view-section">
+        <!-- Add Schedule Accordion / Form -->
+        <div class="section-card">
+          <div class="section-header-compact">
+            <div class="section-title-group">
+              <h3 class="section-title">Tambah Jadwal Baru</h3>
+              <p class="section-desc">Atur waktu otomatis saklar hidup / mati</p>
+            </div>
+          </div>
+
+          <form id="scheduleForm" class="schedule-form">
+            <div class="sched-form-row">
+              <div class="sched-field">
+                <label class="sched-label">Relay Target</label>
+                <select id="schedChannel" class="sched-input" required>
+                  <option value="1">Relay #1</option>
+                  <option value="2">Relay #2</option>
+                  <option value="3">Relay #3</option>
+                  <option value="4">Relay #4</option>
+                </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Aksi</label>
+                <select id="schedAction" class="sched-input" required>
+                  <option value="on">Nyalakan (ON)</option>
+                  <option value="off">Matikan (OFF)</option>
+                  <option value="toggle">Toggle</option>
+                </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Jam Mulai</label>
+                <input type="time" id="schedTime" class="sched-input" required>
+              </div>
+              <div class="sched-field" id="schedDurationGroup">
+                <label class="sched-label">Durasi (Menit)</label>
+                <input type="number" id="schedDuration" class="sched-input" min="1" max="1440" placeholder="Auto-off (opsional)">
+              </div>
+            </div>
+
+            <div class="sched-field">
+              <label class="sched-label">Hari Eksekusi (kosongkan = setiap hari)</label>
+              <div class="days-chips" id="daysChips">
+                <button type="button" class="day-chip" data-day="1">Sen</button>
+                <button type="button" class="day-chip" data-day="2">Sel</button>
+                <button type="button" class="day-chip" data-day="3">Rab</button>
+                <button type="button" class="day-chip" data-day="4">Kam</button>
+                <button type="button" class="day-chip" data-day="5">Jum</button>
+                <button type="button" class="day-chip" data-day="6">Sab</button>
+                <button type="button" class="day-chip" data-day="0">Min</button>
+              </div>
+            </div>
+
+            <div class="sched-field">
+              <label class="sched-label">Label Jadwal (opsional)</label>
+              <input type="text" id="schedLabel" class="sched-input" placeholder="Misal: Siram Pagi Kebun" maxlength="40">
+            </div>
+
+            <button type="submit" class="btn-add-schedule" id="btnAddSchedule">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Simpan Jadwal</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Daftar Jadwal Aktif -->
+        <div class="section-card">
+          <div class="section-header-compact">
+            <h3 class="section-title">Daftar Jadwal Aktif</h3>
+            <span class="badge-count" id="schedCountBadge">0</span>
+          </div>
+          <div class="schedule-list" id="scheduleList">
+            <p class="empty-schedule-msg">Memuat jadwal...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Subview: Timer Countdown -->
+      <section id="subViewTimer" class="sub-view-section hidden">
+        <div class="section-card">
+          <div class="section-header-compact">
+            <div class="section-title-group">
+              <h3 class="section-title">Timer Hitung Mundur</h3>
+              <p class="section-desc">Nyalakan saklar selama durasi tertentu lalu otomatis padam</p>
+            </div>
+          </div>
+          <div class="timer-grid" id="timerGrid">
+            <!-- Di-render dinamis oleh app.js -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==========================================
+         TAB 3: RIWAYAT AKTIVITAS (LOGS)
+    ========================================== -->
+    <main id="tabAktivitas" class="tab-view hidden">
+      <div class="section-card">
+        <div class="section-header-compact flex-between">
+          <div>
+            <h3 class="section-title">Riwayat Aktivitas</h3>
+            <p class="section-desc">Log peristiwa saklar, timer, & eksekusi jadwal</p>
+          </div>
+          <button id="btnRefreshLogs" class="btn-action-sm" type="button" title="Muat ulang log">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            <span>Segarkan</span>
+          </button>
+        </div>
+
+        <div class="log-filter-bar">
+          <button class="filter-pill active" data-filter="all">Semua</button>
+          <button class="filter-pill" data-filter="control">Kontrol</button>
+          <button class="filter-pill" data-filter="schedule">Jadwal</button>
+          <button class="filter-pill" data-filter="device">Sistem</button>
+        </div>
+
+        <div class="activity-timeline" id="activityTimeline">
+          <div class="empty-timeline-msg">Memuat catatan aktivitas...</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ==========================================
+         TAB 4: PENGATURAN & KEAMANAN
+    ========================================== -->
+    <main id="tabPengaturan" class="tab-view hidden">
+      <!-- Database & Redundancy Sync Card -->
+      <div class="section-card">
+        <div class="section-header-compact">
+          <h3 class="section-title">Database & Sinkronisasi JSON</h3>
+          <p class="section-desc">Penyimpanan utama SQLite (iot.db) dengan Auto-Mirror JSON</p>
+        </div>
+        <div class="settings-content">
+          <div class="settings-item-row">
+            <div>
+              <div class="settings-item-title">Sinkronkan dari schedules.json</div>
+              <div class="settings-item-sub">Gunakan ini jika Anda baru saja mengedit file schedules.json langsung di editor</div>
+            </div>
+            <button id="btnSyncJson" class="btn-action-primary" type="button">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+              </svg>
+              <span>Sinkronkan</span>
+            </button>
+          </div>
+          <div class="status-info-box">
+            <span>💡 Mode SQLite WAL Aktif. Setiap perubahan di web langsung tercermin otomatis ke file <code>schedules.json</code> dan <code>state.json</code>.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Relays Renaming Card -->
+      <div class="section-card">
+        <div class="section-header-compact">
+          <h3 class="section-title">Kustomisasi Nama Saklar</h3>
+          <p class="section-desc">Beri nama saklar agar mudah dikenali (contoh: Pompa Siram, Lampu Taman)</p>
+        </div>
+        <div class="relay-naming-list" id="relayNamingList">
+          <!-- Di-render dinamis oleh app.js -->
+        </div>
+      </div>
+
+      <!-- Security Card -->
+      <div class="section-card">
+        <div class="section-header-compact">
+          <h3 class="section-title">Keamanan Administrator</h3>
+          <p class="section-desc">Kredensial login dashboard & perlindungan akses</p>
+        </div>
+        <div class="settings-content">
+          <div class="settings-item-row">
+            <div>
+              <div class="settings-item-title">Ubah Password Admin</div>
+              <div class="settings-item-sub">Perbarui kata sandi akun administrator</div>
+            </div>
+            <button id="btnChangePassword" class="btn-action-secondary" type="button">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+              <span>Ubah Password</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PWA Install Prompt Card -->
+      <div id="installAppContainer" class="section-card install-card hidden">
+        <div class="section-header-compact">
+          <h3 class="section-title">Aplikasi Layar Utama (PWA)</h3>
+          <p class="section-desc">Pasang di smartphone Anda tanpa aplikasi pihak ketiga</p>
+        </div>
+        <button id="btnInstallApp" class="btn-install" type="button">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Pasang ke Layar Utama HP</span>
+        </button>
+      </div>
+
+      <!-- App Info Card -->
+      <div class="section-card text-center">
+        <p class="info-meta">IoT Smart Switch Controller &bull; Wemos D1 Mini &bull; Versi 3.0</p>
+        <p class="info-meta sub">Engine: Node.js, Express, SQLite WAL, Native WebSocket</p>
+      </div>
+    </main>
+
+    <!-- ==========================================
+         BOTTOM NAVIGATION BAR (Mobile & Desktop)
+    ========================================== -->
+    <nav class="bottom-nav-bar">
+      <button class="nav-tab-btn active" data-tab="tabKontrol" type="button">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <span class="nav-label">Kontrol</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tabJadwal" type="button">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <span class="nav-label">Jadwal</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tabAktivitas" type="button">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <span class="nav-label">Aktivitas</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tabPengaturan" type="button">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </div>
+        <span class="nav-label">Pengaturan</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ==========================================
+       MODAL: PIN & SENSOR MANAGER (Zero-Code Dynamic Config)
+  ========================================== -->
+  <div id="modalPinManager" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title">⚙️ Atur Pin & Sensor</h3>
+          <span class="modal-subtitle" id="pinManagerDeviceLabel">Perangkat: wemos-relay-01</span>
+        </div>
+        <button type="button" id="btnClosePinManager" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Tab Navigation di dalam Modal -->
+      <div class="pin-modal-tabs">
+        <button type="button" class="pin-tab-btn active" data-pin-tab="tabListPins">
+          📋 Komponen Aktif (<span id="countActiveComponents">0</span>)
+        </button>
+        <button type="button" class="pin-tab-btn" data-pin-tab="tabAddPin">
+          ➕ Tambah Pin / Sensor
+        </button>
+        <button type="button" class="pin-tab-btn" data-pin-tab="tabScanI2c">
+          🔍 Auto-Scan I2C
+        </button>
+      </div>
+
+      <div class="modal-body modal-scrollable">
+        <!-- SUB-TAB 1: DAFTAR KOMPONEN AKTIF -->
+        <div id="tabListPins" class="pin-tab-content active">
+          <div id="activePinsList" class="pins-list-container">
+            <!-- Di-render dinamis oleh app.js -->
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: FORM TAMBAH / EDIT PIN -->
+        <div id="tabAddPin" class="pin-tab-content">
+          <form id="formAddPin" class="form-pin-grid">
+            <div class="form-group">
+              <label for="pinSelect">Pin Fisik Hardware</label>
+              <select id="pinSelect" class="form-select" required>
+                <optgroup label="ESP8266 / Wemos D1 Mini">
+                  <option value="16">D0 (GPIO16) - Wake / Digital</option>
+                  <option value="5">D1 (GPIO5) - I2C SCL / Digital</option>
+                  <option value="4">D2 (GPIO4) - I2C SDA / Digital</option>
+                  <option value="0">D3 (GPIO0) - Digital In/Out (Pullup)</option>
+                  <option value="2">D4 (GPIO2) - TXD1 / Builtin LED</option>
+                  <option value="14" selected>D5 (GPIO14) - SPI SCK / Digital</option>
+                  <option value="12">D6 (GPIO12) - SPI MISO / Digital</option>
+                  <option value="13">D7 (GPIO13) - SPI MOSI / Digital</option>
+                  <option value="15">D8 (GPIO15) - SPI CS / Digital (Pulldown)</option>
+                  <option value="17">A0 (ADC0) - Input Analog (0-3.3V / 0-1023)</option>
+                </optgroup>
+                <optgroup label="ESP32 (GPIO Standar)">
+                  <option value="2">GPIO 2 - Digital / Onboard LED</option>
+                  <option value="4">GPIO 4 - Digital / ADC2</option>
+                  <option value="12">GPIO 12 - Digital / Touch</option>
+                  <option value="13">GPIO 13 - Digital / Touch</option>
+                  <option value="14">GPIO 14 - Digital / Touch</option>
+                  <option value="15">GPIO 15 - Digital / Touch</option>
+                  <option value="18">GPIO 18 - VSPI SCK</option>
+                  <option value="19">GPIO 19 - VSPI MISO</option>
+                  <option value="21">GPIO 21 - I2C SDA</option>
+                  <option value="22">GPIO 22 - I2C SCL</option>
+                  <option value="23">GPIO 23 - VSPI MOSI</option>
+                  <option value="32">GPIO 32 - ADC1 / Touch</option>
+                  <option value="33">GPIO 33 - ADC1 / Touch</option>
+                  <option value="34">GPIO 34 - Input Only (Analog/PIR)</option>
+                  <option value="35">GPIO 35 - Input Only (Analog/PIR)</option>
+                </optgroup>
+              </select>
+              <small class="form-hint">Pilih pin GPIO tempat kabel sensor/aktuator ditancapkan.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="pinDriverType">Jenis Sensor / Modul</label>
+              <select id="pinDriverType" class="form-select" required>
+                <optgroup label="Aktuator Output">
+                  <option value="switch">🔌 Saklar / Relay (Digital Output)</option>
+                  <option value="dimmer">💡 Dimmer / PWM (Lampu Redup / Speed Kipas 0-100%)</option>
+                </optgroup>
+                <optgroup label="Sensor Digital & Analog">
+                  <option value="digital_in">🚨 Sensor Gerak / Saklar Pintu (PIR / Digital In)</option>
+                  <option value="analog">📊 Sensor Analog (Kelembapan Tanah, LDR, Potensio)</option>
+                  <option value="dht11">🌡️ DHT11 (Sensor Suhu & Kelembapan 1-Wire)</option>
+                  <option value="dht22">🌡️ DHT22 / AM2302 (Suhu Presisi Tinggi 1-Wire)</option>
+                  <option value="ds18b20">🌡️ DS18B20 (Sensor Suhu Tahan Air 1-Wire)</option>
+                </optgroup>
+                <optgroup label="Sensor Bus I2C Native (Zero-Dependency)">
+                  <option value="bmp280">🌡️ BMP280 / BME280 (I2C Suhu & Tekanan Udara)</option>
+                  <option value="bh1750">☀️ BH1750 (I2C Sensor Cahaya Lux)</option>
+                  <option value="sht30">🌡️ SHT30 / SHT31 (I2C Suhu & Kelembapan)</option>
+                  <option value="aht10">🌡️ AHT10 / AHT20 (I2C Suhu & Kelembapan)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="pinCompName">Nama Komponen</label>
+                <input type="text" id="pinCompName" class="form-input" placeholder="Misal: Lampu Teras, Suhu Kamar" required>
+              </div>
+              <div class="form-group">
+                <label for="pinCompUnit">Satuan (Opsional)</label>
+                <input type="text" id="pinCompUnit" class="form-input" placeholder="°C, %, Lux, dll">
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="pinReadInterval">Interval Pembacaan (Detik)</label>
+                <input type="number" id="pinReadInterval" class="form-input" min="1" max="3600" value="5">
+              </div>
+              <div class="form-group">
+                <label for="pinActiveLow">Logika Sinyal</label>
+                <select id="pinActiveLow" class="form-select">
+                  <option value="true" selected>Active LOW (Relay Standar / Pull-up)</option>
+                  <option value="false">Active HIGH</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-actions-right">
+              <button type="submit" id="btnSavePinConfig" class="btn-primary-action">
+                💾 Simpan & Terapkan ke Alat
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- SUB-TAB 3: SCANNER I2C -->
+        <div id="tabScanI2c" class="pin-tab-content">
+          <div class="i2c-scanner-panel">
+            <div class="i2c-info-box">
+              <div class="i2c-info-icon">🔍</div>
+              <div class="i2c-info-text">
+                <h4>Deteksi Otomatis Modul I2C (Plug & Play)</h4>
+                <p>Tancapkan sensor seperti BMP280, BME280, BH1750, atau Layar OLED ke pin I2C (ESP8266: D1=SCL, D2=SDA / ESP32: GPIO22=SCL, GPIO21=SDA). Klik tombol di bawah untuk memindai.</p>
+              </div>
+            </div>
+
+            <div class="i2c-action-bar">
+              <button type="button" id="btnTriggerI2cScan" class="btn-i2c-scan">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="2" x2="12" y2="12"></line>
+                </svg>
+                <span>Pindai Jalur I2C Sekarang</span>
+              </button>
+              <span id="i2cScanStatus" class="i2c-status-text">Siap memindai</span>
+            </div>
+
+            <div id="i2cResultsContainer" class="i2c-results-grid">
+              <div class="empty-state-card">
+                <span>Klik tombol di atas untuk mendeteksi sensor I2C yang terhubung.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       UNIVERSAL CUSTOM MODAL & DRAWER DIALOG
+       (Menggantikan window.prompt & window.confirm)
+  ========================================== -->
+  <div id="customModalBackdrop" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle" class="modal-title">Dialog</h3>
+        <button type="button" id="btnModalClose" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div id="modalBody" class="modal-body">
+        <!-- Diisi dinamis -->
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="btnModalCancel" class="btn-modal-cancel">Batal</button>
+        <button type="button" id="btnModalConfirm" class="btn-modal-confirm">Konfirmasi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Banner -->
+  <div id="toastNotification" class="toast-banner hidden">
+    <span class="toast-icon">⚡</span>
+    <span id="toastMessage">Pesan</span>
+  </div>
+
+  <script src="/app.js?v=3.0"></script>
+</body>
+</html>

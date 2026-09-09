@@ -1,0 +1,16 @@
+{
+  "schedules": [
+    {
+      "id": "sch_sample_01",
+      "deviceId": "node-kamar",
+      "channel": 1,
+      "action": "on",
+      "time": "06:00",
+      "days": [1, 2, 3, 4, 5],
+      "duration": 30,
+      "enabled": true,
+      "label": "Lampu Pagi Hari Kerja",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
