@@ -1,4 +1,4 @@
-# AgyGatewayServer 🌐
+# iot-server — AgyGateway Universal IoT Server 🌐
 
 [![Node.js](https://img.shields.io/badge/Node.js-v18+-68a063?style=flat-square&logo=node.js)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express)](https://expressjs.com)
@@ -8,9 +8,9 @@
 [![Companion](https://img.shields.io/badge/Companion-AgyGatewayClient-orange?style=flat-square)](https://github.com/SiMahfud/AgyGatewayClient)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**AgyGatewayServer** adalah platform gateway IoT modern, mandiri (on-premise / self-hosted), dan berkinerja tinggi yang dirancang sebagai pasangan resmi dari library C++ mikrokontroler [**AgyGatewayClient**](https://github.com/SiMahfud/AgyGatewayClient).
+**iot-server** (AgyGatewayServer) adalah platform gateway IoT modern, mandiri (on-premise / self-hosted), dan berkinerja tinggi yang dirancang sebagai pasangan server resmi dari library C++ mikrokontroler [**AgyGatewayClient**](https://github.com/SiMahfud/AgyGatewayClient).
 
-Server ini menyediakan komunikasi **WebSocket dua arah real-time**, dashboard web interaktif bertema modern berbasis **PWA (Progressive Web App)**, manajemen komponen pin dinamis, pemindai bus I2C jarak jauh, jadwal otomatis (*cron scheduler*), serta pembaruan firmware jarak jauh (*OTA Updates*) dengan umpan balik progres langsung.
+Server ini menyediakan komunikasi **WebSocket dua arah real-time**, dashboard web interaktif bertema modern berbasis **PWA (Progressive Web App)**, Web Serial API untuk **USB Web Flasher & Serial Monitor** bawaan browser bagi pengguna awam, manajemen komponen pin dinamis, pemindai bus I2C jarak jauh, jadwal otomatis (*cron scheduler*), serta pembaruan firmware jarak jauh (*OTA Updates*) dengan umpan balik progres langsung.
 
 ---
 

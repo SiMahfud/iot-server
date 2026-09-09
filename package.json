@@ -1,7 +1,7 @@
 {
-  "name": "iot-relay-server",
+  "name": "iot-server",
   "version": "1.0.0",
-  "description": "Node.js WebSocket Server & PWA Dashboard for Wemos D1 Mini 4-Channel Relay",
+  "description": "Universal IoT Gateway Server & PWA Dashboard - Companion Gateway for AgyGatewayClient (ESP8266 & ESP32)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
