@@ -1,3 +1,8 @@
+// ==========================================
+// AgyGateway Universal IoT Server - Entry Point
+// Lean orchestrator (~150 lines)
+// ==========================================
+
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -18,6 +23,12 @@ const automationEngine = require('./automationEngine');
 const componentTypes = require('./modules/componentTypes');
 const db = require('./database');
 
+// --- Route Modules ---
+const authRoutes = require('./routes/auth');
+const deviceRoutes = require('./routes/devices');
+const scheduleRoutes = require('./routes/schedules');
+const automationRoutes = require('./routes/automations');
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: config.server.wsPath || '/ws' });
@@ -37,23 +48,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 app.use('/firmwares', express.static(path.join(__dirname, 'firmwares')));
-
-// Middleware Autentikasi REST API
-function requireAuth(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader) {
-    return res.status(401).json({ success: false, message: 'Autentikasi dibutuhkan' });
-  }
-
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  const payload = auth.verifyToken(token);
-  if (!payload) {
-    return res.status(403).json({ success: false, message: 'Token tidak valid atau kedaluwarsa' });
-  }
-
-  req.user = payload;
-  next();
-}
 
 // -------------------------------------------------------------
 // Sockets Registry
@@ -78,6 +72,22 @@ setInterval(() => {
     });
   });
 }, 10000);
+
+// -------------------------------------------------------------
+// Inisialisasi Route Modules (Dependency Injection)
+// -------------------------------------------------------------
+authRoutes.init({ auth });
+const { requireAuth } = authRoutes;
+
+deviceRoutes.init({ deviceManager, db, broadcastToBrowsers, requireAuth });
+scheduleRoutes.init({ schedulerManager, db, broadcastToBrowsers, requireAuth });
+automationRoutes.init({ automationEngine, componentTypes, db, requireAuth });
+
+// Mount Routes
+app.use('/api', authRoutes.router);
+app.use('/api', deviceRoutes.router);
+app.use('/api/schedules', scheduleRoutes.router);
+app.use('/api', automationRoutes.router);
 
 // -------------------------------------------------------------
 // WebSocket Handler dengan Autentikasi Ketat
@@ -361,407 +371,6 @@ wss.on('connection', (ws, req) => {
   ws.on('error', (err) => {
     console.error('[WS ERROR]', err.message);
   });
-});
-
-// -------------------------------------------------------------
-// REST API Autentikasi
-// -------------------------------------------------------------
-// 1. Login
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-
-  if (auth.verifyLogin(username, password)) {
-    const token = auth.createToken(username);
-    console.log(`[AUTH] Login berhasil untuk user: ${username}`);
-    return res.json({ success: true, token, username });
-  }
-
-  console.warn(`[AUTH] Percobaan login gagal untuk user: ${username}`);
-  return res.status(401).json({ success: false, message: 'Username atau password salah!' });
-});
-
-// 2. Cek Validitas Token
-app.get('/api/auth/check', (req, res) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader) return res.json({ authenticated: false });
-
-  const token = authHeader.replace(/^Bearer\s+/i, '');
-  const payload = auth.verifyToken(token);
-  return res.json({ authenticated: !!payload, user: payload ? payload.u : null });
-});
-
-// 3. Ubah Password
-app.post('/api/auth/change-password', requireAuth, (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!auth.verifyLogin(req.user.u, currentPassword)) {
-    return res.status(400).json({ success: false, message: 'Password saat ini salah!' });
-  }
-
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ success: false, message: 'Password baru minimal 6 karakter!' });
-  }
-
-  auth.changePassword(newPassword);
-  console.log(`[AUTH] Password diubah untuk user: ${req.user.u}`);
-  res.json({ success: true, message: 'Password berhasil diubah!' });
-});
-
-// -------------------------------------------------------------
-// REST API Manajemen Device (Dilindungi Autentikasi)
-// -------------------------------------------------------------
-app.get('/api/devices', requireAuth, (req, res) => {
-  res.json({ success: true, data: deviceManager.getAll() });
-});
-
-app.post('/api/devices', requireAuth, (req, res) => {
-  const { deviceId, name, type } = req.body;
-  if (!deviceId || !deviceId.trim()) {
-    return res.status(400).json({ success: false, message: 'Device ID wajib diisi' });
-  }
-  const cleanId = deviceId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
-  const dev = deviceManager.addDevice({ deviceId: cleanId, name, type });
-  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: dev });
-  res.json({ success: true, data: dev });
-});
-
-app.post('/api/devices/:deviceId/rename', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const { name } = req.body;
-  const updated = deviceManager.renameDevice(deviceId, name);
-  if (!updated) return res.status(404).json({ success: false, message: 'Device not found' });
-
-  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
-  res.json({ success: true, data: updated });
-});
-
-app.post('/api/devices/:deviceId/relay/:channel/rename', requireAuth, (req, res) => {
-  const { deviceId, channel } = req.params;
-  const { name } = req.body;
-  const updated = deviceManager.renameRelay(deviceId, channel, name);
-  if (!updated) return res.status(404).json({ success: false, message: 'Device or relay not found' });
-
-  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
-  res.json({ success: true, data: updated });
-});
-
-app.delete('/api/devices/:deviceId', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const success = deviceManager.deleteDevice(deviceId);
-  if (!success) return res.status(404).json({ success: false, message: 'Device not found' });
-
-  broadcastToBrowsers({ type: 'DEVICE_DELETED', deviceId });
-  res.json({ success: true, message: `Device ${deviceId} removed` });
-});
-
-// Picu OTA Firmware Update ke Hardware via WebSocket
-app.post('/api/devices/:deviceId/ota', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const { url, filename } = req.body;
-  const binUrl = url || (filename ? `${req.protocol}://${req.get('host')}/firmwares/${encodeURIComponent(filename)}` : null);
-  if (!binUrl) return res.status(400).json({ success: false, message: 'URL atau nama file firmware wajib diberikan' });
-
-  const result = deviceManager.triggerOTA(deviceId, binUrl);
-  if (!result.success) return res.status(503).json(result);
-  res.json(result);
-});
-
-// Daftar File Firmware Tersedia di Server
-app.get('/api/firmwares', requireAuth, (req, res) => {
-  const fwDir = path.join(__dirname, 'firmwares');
-  if (!fs.existsSync(fwDir)) fs.mkdirSync(fwDir, { recursive: true });
-  try {
-    const files = fs.readdirSync(fwDir)
-      .filter(f => f.endsWith('.bin'))
-      .map(f => {
-        const stat = fs.statSync(path.join(fwDir, f));
-        return {
-          filename: f,
-          size: stat.size,
-          sizeFormatted: (stat.size / 1024).toFixed(1) + ' KB',
-          updatedAt: stat.mtime
-        };
-      });
-    res.json({ success: true, data: files });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// Tambah / Konfigurasi Komponen Pin Baru via Web UI
-app.post('/api/devices/:deviceId/components', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const compData = req.body;
-
-  if (!compData || (!compData.name && !compData.id)) {
-    return res.status(400).json({ success: false, message: 'Data komponen atau pin tidak valid' });
-  }
-
-  const updated = deviceManager.addComponent(deviceId, compData);
-  if (!updated) return res.status(404).json({ success: false, message: 'Perangkat tidak ditemukan' });
-
-  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
-  res.json({ success: true, data: updated, message: 'Komponen berhasil dikonfigurasi' });
-});
-
-// Hapus Komponen Pin via Web UI
-app.delete('/api/devices/:deviceId/components/:componentId', requireAuth, (req, res) => {
-  const { deviceId, componentId } = req.params;
-  const updated = deviceManager.deleteComponent(deviceId, componentId);
-  if (!updated) return res.status(404).json({ success: false, message: 'Perangkat atau komponen tidak ditemukan' });
-
-  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
-  res.json({ success: true, data: updated, message: `Komponen ${componentId} berhasil dihapus` });
-});
-
-// Request Pemindaian Bus I2C ke Hardware
-app.post('/api/devices/:deviceId/scan-i2c', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const { sda, scl } = req.body || {};
-
-  const targetSocket = deviceManager.getSocket(deviceId);
-  if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
-    const msg = {
-      action: 'scan_i2c',
-      target: deviceId,
-      sda: sda !== undefined ? parseInt(sda) : -1,
-      scl: scl !== undefined ? parseInt(scl) : -1
-    };
-    targetSocket.send(JSON.stringify(msg));
-    db.addLog(deviceId, 'i2c_scan_requested', 'Permintaan pemindaian I2C dikirim ke hardware');
-    res.json({ success: true, message: `Instruksi pemindaian I2C dikirim ke hardware ${deviceId}` });
-  } else {
-    res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
-  }
-});
-
-// Ambil Hasil Pemindaian I2C Terakhir
-app.get('/api/devices/:deviceId/scan-i2c', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const result = deviceManager.getI2cScanResult(deviceId);
-  res.json({ success: true, data: result });
-});
-
-// Rename komponen modular (sensor, switch, dll)
-app.post('/api/devices/:deviceId/components/:componentId/rename', requireAuth, (req, res) => {
-  const { deviceId, componentId } = req.params;
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ success: false, message: 'Nama baru wajib diisi' });
-
-  const updated = deviceManager.renameComponent(deviceId, componentId, name);
-  if (!updated) return res.status(404).json({ success: false, message: 'Device or component not found' });
-
-  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
-  res.json({ success: true, data: updated });
-});
-
-// Ambil riwayat telemetri untuk grafik sensor (Blynk style graph)
-app.get('/api/devices/:deviceId/components/:componentId/history', requireAuth, (req, res) => {
-  const { deviceId, componentId } = req.params;
-  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
-  const history = db.getTelemetryHistory(deviceId, componentId, limit);
-  res.json({ success: true, data: history });
-});
-
-// Kontrol komponen via REST API
-app.post('/api/devices/:deviceId/components/:componentId/control', requireAuth, (req, res) => {
-  const { deviceId, componentId } = req.params;
-  const { value, duration } = req.body;
-
-  const targetSocket = deviceManager.getSocket(deviceId);
-  if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
-    const msg = {
-      action: 'set_component',
-      target: deviceId,
-      componentId,
-      value,
-      duration: duration || 0
-    };
-    targetSocket.send(JSON.stringify(msg));
-    db.addLog(deviceId, 'rest_control_component', { componentId, value, duration });
-    res.json({ success: true, message: `Command sent to ${deviceId}/${componentId}` });
-  } else {
-    res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
-  }
-});
-
-// Tulis ke Virtual Pin via REST API (Blynk style)
-app.post('/api/devices/:deviceId/virtual-write', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const { pin, value } = req.body;
-
-  if (!pin || value === undefined) {
-    return res.status(400).json({ success: false, message: 'Field pin dan value wajib diisi' });
-  }
-
-  const targetSocket = deviceManager.getSocket(deviceId);
-  if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
-    const msg = {
-      action: 'virtual_write',
-      target: deviceId,
-      pin: String(pin),
-      value: String(value)
-    };
-    targetSocket.send(JSON.stringify(msg));
-    db.addLog(deviceId, 'rest_virtual_write', { pin, value });
-    res.json({ success: true, message: `Virtual pin ${pin} diatur ke ${value} pada ${deviceId}` });
-  } else {
-    res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
-  }
-});
-
-// Trigger OTA Update via REST API
-app.post('/api/devices/:deviceId/ota', requireAuth, (req, res) => {
-  const { deviceId } = req.params;
-  const { firmwareUrl } = req.body;
-
-  if (!firmwareUrl) {
-    return res.status(400).json({ success: false, message: 'firmwareUrl wajib diisi' });
-  }
-
-  const targetSocket = deviceManager.getSocket(deviceId);
-  if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
-    const msg = { action: 'ota_update', target: deviceId, url: firmwareUrl };
-    targetSocket.send(JSON.stringify(msg));
-    db.addLog(deviceId, 'ota_update_triggered', { url: firmwareUrl });
-    res.json({ success: true, message: `Instruksi OTA dikirim ke ${deviceId}` });
-  } else {
-    res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
-  }
-});
-
-// -------------------------------------------------------------
-// REST API Scheduler (Dilindungi Autentikasi)
-// -------------------------------------------------------------
-// Daftar semua jadwal (opsional filter per device)
-app.get('/api/schedules', requireAuth, (req, res) => {
-  const { deviceId } = req.query;
-  const schedules = schedulerManager.getSchedules(deviceId || null);
-  res.json({ success: true, data: schedules });
-});
-
-// Tambah jadwal baru
-app.post('/api/schedules', requireAuth, (req, res) => {
-  const { deviceId, channel, action, time, days, label, duration } = req.body;
-
-  if (!deviceId || !channel || !time) {
-    return res.status(400).json({ success: false, message: 'deviceId, channel, dan time wajib diisi' });
-  }
-
-  // Validasi format time HH:MM
-  if (!/^\d{2}:\d{2}$/.test(time)) {
-    return res.status(400).json({ success: false, message: 'Format waktu harus HH:MM' });
-  }
-
-  const schedule = schedulerManager.addSchedule({ deviceId, channel, action, time, days, label, duration });
-  broadcastToBrowsers({ type: 'SCHEDULES_UPDATE', schedules: schedulerManager.getSchedules() });
-  res.json({ success: true, data: schedule });
-});
-
-// Update jadwal
-app.put('/api/schedules/:id', requireAuth, (req, res) => {
-  const { id } = req.params;
-  const updated = schedulerManager.updateSchedule(id, req.body);
-  if (!updated) return res.status(404).json({ success: false, message: 'Jadwal tidak ditemukan' });
-
-  broadcastToBrowsers({ type: 'SCHEDULES_UPDATE', schedules: schedulerManager.getSchedules() });
-  res.json({ success: true, data: updated });
-});
-
-// Hapus jadwal
-app.delete('/api/schedules/:id', requireAuth, (req, res) => {
-  const { id } = req.params;
-  const success = schedulerManager.deleteSchedule(id);
-  if (!success) return res.status(404).json({ success: false, message: 'Jadwal tidak ditemukan' });
-
-  broadcastToBrowsers({ type: 'SCHEDULES_UPDATE', schedules: schedulerManager.getSchedules() });
-  res.json({ success: true, message: 'Jadwal berhasil dihapus' });
-});
-
-// Sinkronisasi Manual schedules.json -> SQLite
-app.post('/api/schedules/sync-json', requireAuth, (req, res) => {
-  const result = db.importSchedulesFromJson();
-  if (result.success) {
-    schedulerManager.reloadFromDb();
-    broadcastToBrowsers({ type: 'SCHEDULES_UPDATE', schedules: schedulerManager.getSchedules() });
-    return res.json({ success: true, message: `Berhasil sinkronisasi ${result.count} jadwal dari schedules.json` });
-  }
-  return res.status(400).json({ success: false, message: result.message || 'Gagal sinkronisasi' });
-});
-
-// -------------------------------------------------------------
-// REST API Smart Automations (IF-THEN Rules)
-// -------------------------------------------------------------
-app.get('/api/automations', requireAuth, (req, res) => {
-  const deviceId = req.query.deviceId || null;
-  res.json({ success: true, data: automationEngine.getRules(deviceId) });
-});
-
-app.post('/api/automations', requireAuth, (req, res) => {
-  try {
-    const created = automationEngine.addRule(req.body);
-    res.json({ success: true, data: created, message: `Aturan "${created.name}" berhasil dibuat` });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-});
-
-app.put('/api/automations/:id', requireAuth, (req, res) => {
-  try {
-    const updated = automationEngine.updateRule(req.params.id, req.body);
-    if (!updated) return res.status(404).json({ success: false, message: 'Aturan tidak ditemukan' });
-    res.json({ success: true, data: updated, message: `Aturan "${updated.name}" berhasil diperbarui` });
-  } catch (e) {
-    res.status(400).json({ success: false, message: e.message });
-  }
-});
-
-app.delete('/api/automations/:id', requireAuth, (req, res) => {
-  const success = automationEngine.deleteRule(req.params.id);
-  if (!success) return res.status(404).json({ success: false, message: 'Aturan tidak ditemukan' });
-  res.json({ success: true, message: 'Aturan berhasil dihapus' });
-});
-
-app.post('/api/automations/:id/test', requireAuth, (req, res) => {
-  const result = automationEngine.testRule(req.params.id);
-  res.json(result);
-});
-
-app.get('/api/component-types', (req, res) => {
-  res.json({ success: true, data: componentTypes.COMPONENT_TYPES });
-});
-
-// -------------------------------------------------------------
-// REST API Daftar Firmware (untuk Web Flasher)
-// -------------------------------------------------------------
-app.get('/api/firmwares', requireAuth, (req, res) => {
-  const firmwareDir = path.join(__dirname, 'firmwares');
-  try {
-    const files = fs.readdirSync(firmwareDir)
-      .filter(f => f.endsWith('.bin'))
-      .map(f => {
-        const stat = fs.statSync(path.join(firmwareDir, f));
-        return {
-          name: f,
-          size: stat.size,
-          modified: stat.mtime.toISOString(),
-          url: `/firmwares/${encodeURIComponent(f)}`
-        };
-      })
-      .sort((a, b) => new Date(b.modified) - new Date(a.modified));
-    res.json({ success: true, data: files });
-  } catch (e) {
-    res.json({ success: true, data: [] });
-  }
-});
-
-// -------------------------------------------------------------
-// REST API Log Aktivitas (Dilindungi Autentikasi)
-// -------------------------------------------------------------
-app.get('/api/logs', requireAuth, (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
-  const logs = db.getRecentLogs(limit);
-  res.json({ success: true, data: logs });
 });
 
 // -------------------------------------------------------------

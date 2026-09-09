@@ -40,10 +40,13 @@ Server ini menyediakan komunikasi **WebSocket dua arah real-time**, dashboard we
 - ☁️ **Cloudflare Tunnel & Reverse Proxy Ready**: Mendukung akses publik aman dari mana saja di seluruh dunia dengan otomatisasi Express `trust proxy` dan deteksi client IP via `CF-Connecting-IP` tanpa perlu port forwarding atau IP publik statis.
 - 🔐 **Handshake Autentikasi & Session Token**: Melindungi *Device Secret Key* dari pemaparan berulang. Setelah registrasi pertama, node mikrokontroler berkomunikasi menggunakan token sesi HMAC (`sess_...`).
 - 🛠️ **Dynamic Pin Management (Zero-Recompile)**: Tambah saklar relay, tombol input, atau sensor baru langsung dari antarmuka Web tanpa perlu memprogram ulang mikrokontroler.
-- 🔍 **Remote I2C Bus Scanner**: Pindai modul sensor I2C (BMP280, BH1750, SHT30, AHT10, dll.) yang terhubung ke ESP dari jarak jauh melalui klik tombol di dashboard.
+- 🦾 **Dukungan Aktuator Universal (Servo, RGB LED, Buzzer)**: Kontrol sudut motor servo 0–180° presisi, color picker warna RGB/NeoPixel 24-bit, dan alarm audio buzzer.
+- 🧭 **Visualizer 3D Spasial Real-Time (MPU6050 6-Axis)**: Tampilan visual kubus 3D CSS yang berputar mengikuti sudut kemiringan fisik (*Pitch* & *Roll*) sensor MPU6050 beserta tombol kalibrasi nol (*Tare Offset*).
+- ⚡ **Mesin Otomasi Cerdas (Smart IF-THEN Rule Engine)**: Eksekutor aturan otomatis berbasis kondisi sensor secara *event-driven* (misal: jika suhu > 30°C maka servo buka jendela dan relay exhaust ON) dilengkapi *cooldown* anti-spam.
+- 🔍 **Remote I2C Bus Scanner**: Pindai modul sensor I2C (BMP280, BH1750, SHT30, AHT10, MPU6050, dll.) yang terhubung ke ESP dari jarak jauh melalui klik tombol di dashboard.
 - 💡 **Kontrol Dimmer & PWM Slider**: Mendukung pengaturan kecerahan lampu redup, kecepatan kipas exhaust, atau motor DC (0–100%).
 - ⏳ **Independent Countdown Timers**: Perintah kontrol dapat menyertakan timer hitung mundur. Timer dijalankan mandiri di chip ESP agar tetap mematikan beban tepat waktu meskipun jaringan terputus.
-- ⏰ **Universal Cron Scheduler**: Jadwalkan aksi otomatis berdasarkan waktu (HH:MM) dan hari untuk komponen apa pun (saklar, dimmer, atau relay). Terintegrasi ke SQLite WAL dan file JSON watcher.
+- ⏰ **Universal Cron Scheduler**: Jadwalkan aksi otomatis berdasarkan waktu (HH:MM) dan hari untuk komponen apa pun termasuk sudut servo dan persentase dimmer. Terintegrasi ke SQLite WAL dan file JSON watcher.
 - 🚀 **Remote OTA Updates dengan Live Progress**: Unggah file firmware `.bin` ke server dan kirim instruksi update. Dashboard menampilkan persentase unduhan secara live (0–100%).
 - 🎛️ **Virtual Pins Ala Blynk**: Mendukung penulisan dan pembacaan pin virtual (`V1`, `V2`, dst.) untuk otomasi logika kustom.
 - 💾 **SQLite WAL Database**: Penyimpanan berkecepatan tinggi dengan Write-Ahead Logging (WAL) untuk mencatat riwayat telemetri, log perangkat, jadwal, dan kredensial admin.
@@ -65,14 +68,19 @@ flowchart TD
         Express["Express.js REST API"]
         Auth["AuthManager (HMAC Session Tokens)"]
         DevMgr["Device & Pin Manager"]
+        CompReg["Component Registry"]
         Sched["Cron Scheduler Manager"]
+        AutoEng["Smart Rule Engine (IF-THEN)"]
         DB[("SQLite WAL Database<br>iot.db")]
         
         WS <--> Auth
         WS <--> DevMgr
         Express <--> DevMgr
         Express <--> Sched
+        Express <--> AutoEng
         DevMgr <--> DB
+        DevMgr --> AutoEng
+        AutoEng <--> DB
         Sched <--> DB
     end
 
@@ -396,9 +404,15 @@ Seluruh endpoint di bawah ini memerlukan header `Authorization: Bearer <TOKEN>` 
 | `POST` | `/api/devices/:deviceId/virtual-write` | Menulis data ke Virtual Pin Blynk (`pin`, `value`). |
 | `POST` | `/api/devices/:deviceId/ota` | Memulai OTA Update jarak jauh (`firmwareUrl`). |
 | `GET` | `/api/schedules` | Mendapatkan daftar jadwal timer/cron aktif. |
-| `POST` | `/api/schedules` | Menambahkan jadwal otomatis baru. |
+| `POST` | `/api/schedules` | Menambahkan jadwal otomatis baru (termasuk nilai target/sudut). |
 | `PUT` | `/api/schedules/:id` | Memperbarui jadwal. |
 | `DELETE`| `/api/schedules/:id` | Menghapus jadwal. |
+| `GET` | `/api/automations` | Mendapatkan daftar aturan otomasi (IF-THEN). |
+| `POST` | `/api/automations` | Membuat aturan otomasi cerdas baru. |
+| `PUT` | `/api/automations/:id` | Memperbarui aturan otomasi. |
+| `DELETE`| `/api/automations/:id` | Menghapus aturan otomasi. |
+| `POST` | `/api/automations/:id/test` | Menguji coba pemicuan aturan otomasi secara langsung. |
+| `GET` | `/api/component-types` | Katalog definisi modul komponen yang didukung. |
 | `GET` | `/api/logs` | Mengambil catatan log aktivitas sistem. |
 
 ---
@@ -408,18 +422,47 @@ Seluruh endpoint di bawah ini memerlukan header `Authorization: Bearer <TOKEN>` 
 ```text
 AgyGatewayServer/
 ├── auth.js               # Manajemen autentikasi web & session token hardware
+├── automationEngine.js   # Smart Rule Engine IF-THEN (event-driven dari sensor)
 ├── config.example.json   # Template konfigurasi bersih untuk publikasi git
 ├── config.json           # Konfigurasi aktif (diabaikan oleh .gitignore)
-├── database.js           # Layer database SQLite WAL (relays, components, telemetry, logs)
+├── database.js           # Base class SQLite WAL + mixin loader
 ├── deviceManager.js      # Manajemen state perangkat, soket, dan Dynamic Pins
 ├── schedulerManager.js   # Eksekutor jadwal otomatis node-cron
-├── server.js             # Entrypoint server Express & WebSocket
+├── server.js             # Entrypoint server Express & WebSocket yang ramping
+├── db/                   # Modular Database Mixins (Pemisahan Operasi SQLite)
+│   ├── migrationMixin.js # Migrasi otomatis dari file JSON lama ke SQLite
+│   ├── deviceMixin.js    # Operasi CRUD perangkat dan relay
+│   ├── componentMixin.js # Operasi komponen modular dan telemetry history
+│   ├── scheduleMixin.js  # Operasi jadwal timer/cron dan sinkronisasi JSON
+│   ├── automationMixin.js# Operasi aturan otomatisasi cerdas (IF-THEN)
+│   └── userLogMixin.js   # Autentikasi user admin dan pencatatan activity log
+├── routes/               # Modular Express REST API Routes
+│   ├── auth.js           # Endpoint autentikasi (/api/auth/*)
+│   ├── devices.js        # Endpoint perangkat, pin, I2C scan, kontrol (/api/devices/*)
+│   ├── schedules.js      # Endpoint jadwal timer/cron (/api/schedules/*)
+│   └── automations.js    # Endpoint aturan otomasi, katalog modul, & logs (/api/*)
+├── modules/
+│   └── componentTypes.js # Katalog definisi modul, metadata, ikon, dan kapabilitas aksi
 ├── firmwares/            # Direktori penyimpanan file biner firmware OTA (.bin)
 │   └── .gitkeep
-├── public/               # Frontend Progressive Web App (PWA)
-│   ├── index.html        # Single Page Application HTML
-│   ├── app.js            # Logika dashboard, WebSockets, dan kontrol komponen
-│   ├── style.css         # Styling modern dark mode dan glassmorphism
+├── public/               # Frontend Progressive Web App (PWA) Modular
+│   ├── index.html        # Single Page Application HTML shell
+│   ├── app.js            # Entry point orkestrator aplikasi frontend
+│   ├── style.css         # Master barrel stylesheet (@import semua modul CSS)
+│   ├── css/              # Modular Stylesheets
+│   │   ├── base.css      # CSS Variables, reset, dan utility classes
+│   │   ├── login.css     # Layar login, form, dan animasi
+│   │   ├── layout.css    # Header, quick stats, device bar, navigasi tab
+│   │   ├── components.css# Kartu komponen, switch toggle, timer modal, toast
+│   │   ├── pin-manager.css# Modal kelola pin GPIO, I2C scanner, action buttons
+│   │   ├── tools.css     # Web Serial Monitor & USB Web Flasher
+│   │   ├── misc.css      # Dimmer slider, preset chip, pairing wizard, OTA panel
+│   │   ├── widgets.css   # Kartu modul aktuator (Servo, MPU 3D box, RGB, Buzzer)
+│   │   └── automations.css# UI Smart Rule Engine IF-THEN
+│   ├── js/
+│   │   ├── state.js      # Global reactive state & event bus
+│   │   ├── wsClient.js   # WebSocket manager & live dispatcher
+│   │   └── modules/      # Modul fitur frontend (Factory widgets, automations, scheduler, flasher, chart)
 │   ├── manifest.json     # PWA Web App Manifest
 │   ├── icon.svg          # Ikon aplikasi vektor
 │   └── sw.js             # Service Worker untuk dukungan offline caching
