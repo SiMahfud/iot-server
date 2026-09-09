@@ -638,6 +638,30 @@ app.post('/api/schedules/sync-json', requireAuth, (req, res) => {
 });
 
 // -------------------------------------------------------------
+// REST API Daftar Firmware (untuk Web Flasher)
+// -------------------------------------------------------------
+app.get('/api/firmwares', requireAuth, (req, res) => {
+  const firmwareDir = path.join(__dirname, 'firmwares');
+  try {
+    const files = fs.readdirSync(firmwareDir)
+      .filter(f => f.endsWith('.bin'))
+      .map(f => {
+        const stat = fs.statSync(path.join(firmwareDir, f));
+        return {
+          name: f,
+          size: stat.size,
+          modified: stat.mtime.toISOString(),
+          url: `/firmwares/${encodeURIComponent(f)}`
+        };
+      })
+      .sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    res.json({ success: true, data: files });
+  } catch (e) {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// -------------------------------------------------------------
 // REST API Log Aktivitas (Dilindungi Autentikasi)
 // -------------------------------------------------------------
 app.get('/api/logs', requireAuth, (req, res) => {

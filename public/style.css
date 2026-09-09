@@ -1535,7 +1535,7 @@ body {
   border-radius: 28px;
   padding: 6px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 4px;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -2321,4 +2321,798 @@ body {
   background: rgba(16, 185, 129, 0.1);
   color: var(--primary-glow);
   border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+/* ==========================================
+   TAB 5: TOOLS — Serial Monitor & Web Flasher
+========================================== */
+
+/* Browser Unsupported Banner */
+.tools-unsupported-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  animation: fadeIn 0.3s ease;
+}
+
+.unsupported-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.unsupported-text strong {
+  color: var(--accent-amber);
+  font-size: 0.95rem;
+}
+
+.unsupported-text p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* --- Serial Monitor --- */
+.serial-monitor-card {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.serial-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.serial-toolbar-left,
+.serial-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.serial-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.serial-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  transition: all 0.3s ease;
+}
+
+.serial-status-indicator.connected .serial-status-dot {
+  background: var(--primary-glow);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  animation: pulseDot 1.5s infinite;
+}
+
+.serial-status-indicator.connected {
+  color: var(--primary-glow);
+}
+
+.serial-port-name {
+  font-size: 0.7rem;
+  font-family: monospace;
+  color: var(--text-subtle);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.serial-baud-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  padding: 5px 8px;
+  cursor: pointer;
+  outline: none;
+}
+
+.serial-baud-select:focus {
+  border-color: var(--primary-glow);
+}
+
+.btn-serial-connect {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.15));
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: var(--radius-sm);
+  color: var(--primary-glow);
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-serial-connect:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(56, 189, 248, 0.25));
+  transform: translateY(-1px);
+}
+
+.btn-serial-connect.connected {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(244, 63, 94, 0.15));
+  border-color: rgba(244, 63, 94, 0.4);
+  color: var(--danger-glow);
+}
+
+.btn-serial-connect.connected:hover {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.35), rgba(244, 63, 94, 0.25));
+}
+
+/* Terminal Output */
+.serial-terminal {
+  background: #0a0e14;
+  min-height: 320px;
+  max-height: 55vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 14px;
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: #a8d8a8;
+  word-break: break-all;
+  white-space: pre-wrap;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.serial-terminal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.serial-terminal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.serial-welcome-msg {
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.terminal-prompt {
+  color: var(--primary-glow);
+  font-weight: 700;
+}
+
+.serial-line {
+  display: block;
+  padding: 1px 0;
+}
+
+.serial-line .serial-timestamp {
+  color: var(--text-subtle);
+  margin-right: 8px;
+  font-size: 0.7rem;
+}
+
+/* Serial Input Row */
+.serial-input-row {
+  display: flex;
+  border-top: 1px solid var(--border-color);
+}
+
+.serial-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  padding: 10px 14px;
+  color: var(--text-main);
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.serial-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.serial-input::placeholder {
+  color: var(--text-subtle);
+}
+
+.btn-serial-send {
+  background: rgba(16, 185, 129, 0.15);
+  border: none;
+  border-left: 1px solid var(--border-color);
+  color: var(--primary-glow);
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: var(--transition-smooth);
+}
+
+.btn-serial-send:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.3);
+}
+
+.btn-serial-send:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Serial Actions Bar */
+.serial-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.15);
+  flex-wrap: wrap;
+}
+
+.serial-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.serial-checkbox-label input[type="checkbox"] {
+  accent-color: var(--primary-glow);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.serial-actions-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-serial-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-serial-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+/* --- Web Flasher --- */
+.flasher-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.flasher-connect-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.flasher-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.flasher-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  transition: all 0.3s ease;
+}
+
+.flasher-status.connected .flasher-status-dot {
+  background: var(--primary-glow);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  animation: pulseDot 1.5s infinite;
+}
+
+.flasher-status.connected {
+  color: var(--primary-glow);
+}
+
+.btn-flasher-connect {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(168, 85, 247, 0.12));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-sm);
+  color: var(--accent-blue);
+  font-family: var(--font-family);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-flasher-connect:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(168, 85, 247, 0.2));
+  transform: translateY(-1px);
+}
+
+.btn-flasher-connect.connected {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(244, 63, 94, 0.15));
+  border-color: rgba(244, 63, 94, 0.4);
+  color: var(--danger-glow);
+}
+
+/* Chip Info Card */
+.chip-info-card {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(168, 85, 247, 0.04));
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  animation: fadeIn 0.3s ease;
+}
+
+.chip-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chip-icon {
+  font-size: 1.1rem;
+}
+
+.chip-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+.chip-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.chip-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chip-label {
+  font-size: 0.68rem;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chip-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.font-mono {
+  font-family: monospace;
+}
+
+/* Firmware Source Tabs */
+.flasher-firmware-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.firmware-source-tabs {
+  display: flex;
+  gap: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.fw-src-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.fw-src-btn:not(:last-child) {
+  border-right: 1px solid var(--border-color);
+}
+
+.fw-src-btn.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--primary-glow);
+}
+
+.fw-src-btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* File Drop Zone */
+.file-drop-zone {
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: var(--transition-smooth);
+  position: relative;
+}
+
+.file-drop-zone:hover,
+.file-drop-zone.drag-over {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.05);
+  color: var(--primary-glow);
+}
+
+.file-drop-zone p {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.file-drop-sub {
+  font-size: 0.72rem !important;
+  font-weight: 400 !important;
+  color: var(--text-subtle) !important;
+}
+
+.file-input-hidden {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Selected File Info */
+.selected-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: var(--radius-sm);
+  animation: fadeIn 0.25s ease;
+}
+
+.file-icon {
+  font-size: 1.2rem;
+}
+
+.file-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  word-break: break-all;
+}
+
+.file-size {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.btn-clear-file {
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.btn-clear-file:hover {
+  color: var(--danger-glow);
+}
+
+/* Server Firmware List */
+.server-fw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.fw-server-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.fw-server-item:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.fw-server-item.selected {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.fw-server-item .fw-icon {
+  font-size: 1.1rem;
+}
+
+.fw-server-item .fw-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fw-server-item .fw-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.fw-server-item .fw-meta {
+  font-size: 0.68rem;
+  color: var(--text-subtle);
+}
+
+/* Flash Options */
+.flash-options-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.flash-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 180px;
+}
+
+/* Flash Action Buttons */
+.flash-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn-flash-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-flash-action:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-erase {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: var(--accent-amber);
+}
+
+.btn-erase:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.2);
+  transform: translateY(-1px);
+}
+
+.btn-flash {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(56, 189, 248, 0.12));
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--primary-glow);
+}
+
+.btn-flash:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(56, 189, 248, 0.2));
+  transform: translateY(-1px);
+}
+
+/* Flash Progress */
+.flash-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.25s ease;
+}
+
+.flash-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.flash-progress-header span:first-child {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.flash-progress-header span:last-child {
+  color: var(--primary-glow);
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.flash-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.flash-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-glow), var(--accent-blue));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.flash-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Flasher Console */
+.flasher-console {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.flasher-console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.flasher-console-output {
+  background: #0a0e14;
+  min-height: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.flasher-console-output::-webkit-scrollbar {
+  width: 5px;
+}
+
+.flasher-console-output::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.console-line {
+  display: block;
+  padding: 1px 0;
+}
+
+.console-line.info {
+  color: var(--accent-blue);
+}
+
+.console-line.success {
+  color: var(--primary-glow);
+}
+
+.console-line.error {
+  color: var(--danger-glow);
+}
+
+.console-line.warning {
+  color: var(--accent-amber);
+}
+
+/* Empty State */
+.empty-state-card {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: 0.82rem;
 }

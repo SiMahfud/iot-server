@@ -515,6 +515,279 @@
     </main>
 
     <!-- ==========================================
+         TAB 5: TOOLS (Serial Monitor & Web Flasher)
+    ========================================== -->
+    <main id="tabTools" class="tab-view hidden">
+      <!-- Browser Compatibility Banner -->
+      <div id="webSerialUnsupported" class="tools-unsupported-banner hidden">
+        <div class="unsupported-icon">⚠️</div>
+        <div class="unsupported-text">
+          <strong>Browser Tidak Didukung</strong>
+          <p>Web Serial API hanya tersedia di Google Chrome, Microsoft Edge, atau Opera versi 89+. Silakan buka halaman ini di browser yang didukung.</p>
+        </div>
+      </div>
+
+      <!-- Sub-tab Switcher -->
+      <div class="segmented-control">
+        <button id="subTabSerialBtn" class="seg-btn active" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          <span>Serial Monitor</span>
+        </button>
+        <button id="subTabFlasherBtn" class="seg-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Web Flasher</span>
+        </button>
+      </div>
+
+      <!-- Subview: Serial Monitor -->
+      <section id="subViewSerial" class="sub-view-section">
+        <div class="section-card serial-monitor-card">
+          <!-- Serial Toolbar -->
+          <div class="serial-toolbar">
+            <div class="serial-toolbar-left">
+              <div class="serial-status-indicator" id="serialStatusIndicator">
+                <span class="serial-status-dot"></span>
+                <span id="serialStatusLabel">Terputus</span>
+              </div>
+              <span id="serialPortName" class="serial-port-name"></span>
+            </div>
+            <div class="serial-toolbar-right">
+              <select id="serialBaudRate" class="serial-baud-select">
+                <option value="9600">9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="57600">57600</option>
+                <option value="115200" selected>115200</option>
+                <option value="230400">230400</option>
+                <option value="460800">460800</option>
+                <option value="921600">921600</option>
+              </select>
+              <button id="btnSerialConnect" class="btn-serial-connect" type="button">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span>Hubungkan</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Terminal Output -->
+          <div class="serial-terminal" id="serialTerminal">
+            <div class="serial-welcome-msg">
+              <span class="terminal-prompt">&gt;</span> Klik <strong>"Hubungkan"</strong> untuk memulai Serial Monitor...
+              <br><span class="terminal-prompt">&gt;</span> Pastikan perangkat ESP terhubung via kabel USB data.
+            </div>
+          </div>
+
+          <!-- Serial Input Row -->
+          <div class="serial-input-row">
+            <input type="text" id="serialInput" class="serial-input" placeholder="Ketik perintah serial..." disabled>
+            <button id="btnSerialSend" class="btn-serial-send" type="button" disabled title="Kirim">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Serial Actions -->
+          <div class="serial-actions-bar">
+            <label class="serial-checkbox-label">
+              <input type="checkbox" id="serialAutoScroll" checked>
+              <span>Auto-scroll</span>
+            </label>
+            <label class="serial-checkbox-label">
+              <input type="checkbox" id="serialShowTimestamp">
+              <span>Timestamp</span>
+            </label>
+            <div class="serial-actions-right">
+              <button id="btnSerialClear" class="btn-serial-action" type="button">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Hapus</span>
+              </button>
+              <button id="btnSerialDownload" class="btn-serial-action" type="button">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Download</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Subview: Web Flasher -->
+      <section id="subViewFlasher" class="sub-view-section hidden">
+        <div class="section-card flasher-card">
+          <div class="section-header-compact">
+            <div class="section-title-group">
+              <h3 class="section-title">⚡ ESP Web Flasher</h3>
+              <p class="section-desc">Flash firmware .bin langsung ke ESP8266/ESP32 via USB</p>
+            </div>
+          </div>
+
+          <!-- Flasher Connection -->
+          <div class="flasher-connect-row">
+            <div class="flasher-status" id="flasherStatus">
+              <span class="flasher-status-dot"></span>
+              <span id="flasherStatusLabel">Tidak terhubung</span>
+            </div>
+            <button id="btnFlasherConnect" class="btn-flasher-connect" type="button">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+              <span>Hubungkan Port</span>
+            </button>
+          </div>
+
+          <!-- Chip Info Card -->
+          <div id="chipInfoCard" class="chip-info-card hidden">
+            <div class="chip-info-header">
+              <span class="chip-icon">🔬</span>
+              <span class="chip-title">Info Chip Terdeteksi</span>
+            </div>
+            <div class="chip-info-grid">
+              <div class="chip-info-item">
+                <span class="chip-label">Chip</span>
+                <span id="chipType" class="chip-value">—</span>
+              </div>
+              <div class="chip-info-item">
+                <span class="chip-label">MAC Address</span>
+                <span id="chipMac" class="chip-value font-mono">—</span>
+              </div>
+              <div class="chip-info-item">
+                <span class="chip-label">Flash Size</span>
+                <span id="chipFlashSize" class="chip-value">—</span>
+              </div>
+              <div class="chip-info-item">
+                <span class="chip-label">Crystal</span>
+                <span id="chipCrystal" class="chip-value">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Firmware Source -->
+          <div class="flasher-firmware-section">
+            <div class="firmware-source-tabs">
+              <button type="button" class="fw-src-btn active" data-fw-src="upload" id="fwSrcUploadBtn">
+                📁 Upload File
+              </button>
+              <button type="button" class="fw-src-btn" data-fw-src="server" id="fwSrcServerBtn">
+                🗄️ Dari Server
+              </button>
+            </div>
+
+            <!-- Upload File -->
+            <div id="fwSrcUpload" class="fw-src-panel">
+              <div class="file-drop-zone" id="fileDropZone">
+                <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="1.5" fill="none">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p>Drag & drop file <strong>.bin</strong> di sini</p>
+                <p class="file-drop-sub">atau klik untuk memilih</p>
+                <input type="file" id="firmwareFileInput" accept=".bin" class="file-input-hidden">
+              </div>
+              <div id="selectedFileInfo" class="selected-file-info hidden">
+                <span class="file-icon">📦</span>
+                <div class="file-details">
+                  <span id="selectedFileName" class="file-name">—</span>
+                  <span id="selectedFileSize" class="file-size">—</span>
+                </div>
+                <button id="btnClearFile" class="btn-clear-file" type="button" title="Hapus">&times;</button>
+              </div>
+            </div>
+
+            <!-- Server Firmware List -->
+            <div id="fwSrcServer" class="fw-src-panel hidden">
+              <div id="serverFirmwareList" class="server-fw-list">
+                <div class="empty-state-card">
+                  <span>Memuat daftar firmware dari server...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flash Options -->
+          <div class="flash-options-row">
+            <div class="flash-option">
+              <label class="sched-label">Offset Flash</label>
+              <select id="flashOffset" class="serial-baud-select">
+                <option value="0x0">0x0 (ESP8266 default)</option>
+                <option value="0x1000">0x1000 (ESP32 bootloader)</option>
+                <option value="0x8000">0x8000 (Partition table)</option>
+                <option value="0x10000">0x10000 (ESP32 app)</option>
+                <option value="0xe000">0xe000 (OTA data)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Flash Action Buttons -->
+          <div class="flash-actions-row">
+            <button id="btnEraseFlash" class="btn-flash-action btn-erase" type="button" disabled>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              <span>Erase Flash</span>
+            </button>
+            <button id="btnFlashFirmware" class="btn-flash-action btn-flash" type="button" disabled>
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <span>Flash Firmware</span>
+            </button>
+          </div>
+
+          <!-- Flash Progress -->
+          <div id="flashProgressContainer" class="flash-progress-container hidden">
+            <div class="flash-progress-header">
+              <span id="flashProgressLabel">Mempersiapkan...</span>
+              <span id="flashProgressPercent">0%</span>
+            </div>
+            <div class="flash-progress-track">
+              <div id="flashProgressBar" class="flash-progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Flasher Console Output -->
+          <div class="flasher-console">
+            <div class="flasher-console-header">
+              <span>📋 Console Output</span>
+              <button id="btnClearFlasherConsole" class="btn-serial-action" type="button">
+                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Hapus</span>
+              </button>
+            </div>
+            <div class="flasher-console-output" id="flasherConsole">
+              <span class="console-line info">&gt; Siap menerima instruksi flash...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ==========================================
          BOTTOM NAVIGATION BAR (Mobile & Desktop)
     ========================================== -->
     <nav class="bottom-nav-bar">
@@ -556,6 +829,16 @@
           </svg>
         </div>
         <span class="nav-label">Pengaturan</span>
+      </button>
+
+      <button class="nav-tab-btn" data-tab="tabTools" type="button">
+        <div class="nav-icon-wrap">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </div>
+        <span class="nav-label">Tools</span>
       </button>
     </nav>
   </div>

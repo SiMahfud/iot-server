@@ -207,6 +207,8 @@ function switchTab(tabId) {
     loadActivityLogs();
   } else if (tabId === 'tabPengaturan') {
     renderRelayNamingList();
+  } else if (tabId === 'tabTools') {
+    checkWebSerialSupport();
   }
 }
 
@@ -2256,6 +2258,727 @@ function handleOtaProgressUpdate(msg) {
     showToast(`✅ Unduh firmware selesai (100%)! ${msg.deviceId} sedang reboot...`);
   } else {
     showToast(`🔄 OTA Update ${msg.deviceId}: ${percent}% (${Math.round((msg.current || 0) / 1024)} KB / ${Math.round((msg.total || 0) / 1024)} KB)`);
+  }
+}
+
+// -------------------------------------------------------------
+// TAB 5: TOOLS — Web Serial Monitor & Web Flasher
+// Menggunakan Web Serial API (Chrome/Edge 89+)
+// -------------------------------------------------------------
+
+// --- Cek Dukungan Web Serial API ---
+const isWebSerialSupported = ('serial' in navigator);
+const webSerialUnsupported = document.getElementById('webSerialUnsupported');
+
+// --- Serial Monitor DOM Elements ---
+const serialStatusIndicator = document.getElementById('serialStatusIndicator');
+const serialStatusLabel = document.getElementById('serialStatusLabel');
+const serialPortName = document.getElementById('serialPortName');
+const serialBaudRate = document.getElementById('serialBaudRate');
+const btnSerialConnect = document.getElementById('btnSerialConnect');
+const serialTerminal = document.getElementById('serialTerminal');
+const serialInput = document.getElementById('serialInput');
+const btnSerialSend = document.getElementById('btnSerialSend');
+const serialAutoScroll = document.getElementById('serialAutoScroll');
+const serialShowTimestamp = document.getElementById('serialShowTimestamp');
+const btnSerialClear = document.getElementById('btnSerialClear');
+const btnSerialDownload = document.getElementById('btnSerialDownload');
+
+// --- Serial Monitor Sub-tab DOM Elements ---
+const subTabSerialBtn = document.getElementById('subTabSerialBtn');
+const subTabFlasherBtn = document.getElementById('subTabFlasherBtn');
+const subViewSerial = document.getElementById('subViewSerial');
+const subViewFlasher = document.getElementById('subViewFlasher');
+
+// --- Web Flasher DOM Elements ---
+const flasherStatus = document.getElementById('flasherStatus');
+const flasherStatusLabel = document.getElementById('flasherStatusLabel');
+const btnFlasherConnect = document.getElementById('btnFlasherConnect');
+const chipInfoCard = document.getElementById('chipInfoCard');
+const chipType = document.getElementById('chipType');
+const chipMac = document.getElementById('chipMac');
+const chipFlashSize = document.getElementById('chipFlashSize');
+const chipCrystal = document.getElementById('chipCrystal');
+const fwSrcUploadBtn = document.getElementById('fwSrcUploadBtn');
+const fwSrcServerBtn = document.getElementById('fwSrcServerBtn');
+const fwSrcUpload = document.getElementById('fwSrcUpload');
+const fwSrcServer = document.getElementById('fwSrcServer');
+const fileDropZone = document.getElementById('fileDropZone');
+const firmwareFileInput = document.getElementById('firmwareFileInput');
+const selectedFileInfo = document.getElementById('selectedFileInfo');
+const selectedFileName = document.getElementById('selectedFileName');
+const selectedFileSize = document.getElementById('selectedFileSize');
+const btnClearFile = document.getElementById('btnClearFile');
+const serverFirmwareList = document.getElementById('serverFirmwareList');
+const flashOffset = document.getElementById('flashOffset');
+const btnEraseFlash = document.getElementById('btnEraseFlash');
+const btnFlashFirmware = document.getElementById('btnFlashFirmware');
+const flashProgressContainer = document.getElementById('flashProgressContainer');
+const flashProgressLabel = document.getElementById('flashProgressLabel');
+const flashProgressPercent = document.getElementById('flashProgressPercent');
+const flashProgressBar = document.getElementById('flashProgressBar');
+const flasherConsole = document.getElementById('flasherConsole');
+const btnClearFlasherConsole = document.getElementById('btnClearFlasherConsole');
+
+// --- Serial Monitor State ---
+let serialPort = null;
+let serialReader = null;
+let serialWriter = null;
+let serialReadable = null;
+let serialIsConnected = false;
+let serialLineBuffer = '';
+let serialLogContent = '';
+const SERIAL_MAX_LINES = 5000;
+let serialLineCount = 0;
+
+// --- Web Flasher State ---
+let flasherPort = null;
+let flasherTransport = null;
+let espLoader = null;
+let flasherIsConnected = false;
+let selectedFirmwareFile = null;
+let selectedServerFirmware = null;
+let esptoolModule = null;
+
+// --- Tools Sub-tab Switcher ---
+if (subTabSerialBtn && subTabFlasherBtn) {
+  subTabSerialBtn.addEventListener('click', () => {
+    subTabSerialBtn.classList.add('active');
+    subTabFlasherBtn.classList.remove('active');
+    subViewSerial.classList.remove('hidden');
+    subViewFlasher.classList.add('hidden');
+  });
+
+  subTabFlasherBtn.addEventListener('click', () => {
+    subTabFlasherBtn.classList.add('active');
+    subTabSerialBtn.classList.remove('active');
+    subViewFlasher.classList.remove('hidden');
+    subViewSerial.classList.add('hidden');
+  });
+}
+
+// =============================================================
+// SERIAL MONITOR MODULE
+// =============================================================
+
+function updateSerialUI(connected) {
+  serialIsConnected = connected;
+  if (connected) {
+    serialStatusIndicator.classList.add('connected');
+    serialStatusLabel.textContent = 'Terhubung';
+    btnSerialConnect.classList.add('connected');
+    btnSerialConnect.querySelector('span').textContent = 'Putuskan';
+    serialInput.disabled = false;
+    btnSerialSend.disabled = false;
+  } else {
+    serialStatusIndicator.classList.remove('connected');
+    serialStatusLabel.textContent = 'Terputus';
+    serialPortName.textContent = '';
+    btnSerialConnect.classList.remove('connected');
+    btnSerialConnect.querySelector('span').textContent = 'Hubungkan';
+    serialInput.disabled = true;
+    btnSerialSend.disabled = true;
+  }
+}
+
+async function connectSerial() {
+  if (!isWebSerialSupported) {
+    showToast('❌ Browser ini tidak mendukung Web Serial API');
+    return;
+  }
+
+  try {
+    serialPort = await navigator.serial.requestPort();
+    const baudRate = parseInt(serialBaudRate.value) || 115200;
+
+    await serialPort.open({ baudRate });
+
+    const info = serialPort.getInfo();
+    const portLabel = info.usbVendorId
+      ? `USB (VID:${info.usbVendorId.toString(16).toUpperCase()} PID:${info.usbProductId.toString(16).toUpperCase()})`
+      : 'Serial Port';
+    serialPortName.textContent = portLabel;
+
+    updateSerialUI(true);
+    appendToTerminal(`--- Port terbuka (${baudRate} baud) ---`, true);
+    showToast(`🔌 Serial terhubung @ ${baudRate} baud`);
+
+    // Mulai membaca
+    readSerialLoop();
+  } catch (err) {
+    if (err.name !== 'NotFoundError') {
+      console.error('[Serial] Connect error:', err);
+      appendToTerminal(`❌ Error: ${err.message}`, true);
+      showToast(`❌ Gagal menghubungkan serial: ${err.message}`);
+    }
+  }
+}
+
+async function disconnectSerial() {
+  try {
+    if (serialReader) {
+      await serialReader.cancel();
+      serialReader = null;
+    }
+    if (serialPort) {
+      await serialPort.close();
+      serialPort = null;
+    }
+  } catch (err) {
+    console.warn('[Serial] Disconnect:', err.message);
+  }
+  updateSerialUI(false);
+  appendToTerminal('--- Port ditutup ---', true);
+  showToast('🔌 Serial terputus');
+}
+
+async function readSerialLoop() {
+  const decoder = new TextDecoderStream();
+  serialReadable = serialPort.readable.pipeTo(decoder.writable);
+  serialReader = decoder.readable.getReader();
+
+  try {
+    while (true) {
+      const { value, done } = await serialReader.read();
+      if (done) break;
+      if (value) {
+        serialLineBuffer += value;
+
+        // Proses per baris
+        const lines = serialLineBuffer.split('\n');
+        serialLineBuffer = lines.pop(); // Sisa yang belum selesai
+
+        for (const line of lines) {
+          const cleanLine = line.replace(/\r$/, '');
+          if (cleanLine.length > 0) {
+            appendToTerminal(cleanLine);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'TypeError' && !err.message.includes('cancelled')) {
+      console.error('[Serial] Read error:', err);
+      appendToTerminal(`❌ Read error: ${err.message}`, true);
+    }
+  } finally {
+    serialReader = null;
+    if (serialIsConnected) {
+      updateSerialUI(false);
+      appendToTerminal('--- Koneksi terputus ---', true);
+    }
+  }
+}
+
+async function sendSerialData(text) {
+  if (!serialPort || !serialPort.writable) return;
+
+  try {
+    const encoder = new TextEncoder();
+    const writer = serialPort.writable.getWriter();
+    await writer.write(encoder.encode(text + '\n'));
+    writer.releaseLock();
+    appendToTerminal(`> ${text}`, true);
+  } catch (err) {
+    console.error('[Serial] Send error:', err);
+    showToast(`❌ Gagal mengirim: ${err.message}`);
+  }
+}
+
+function appendToTerminal(text, isSystem = false) {
+  // Enforce max lines
+  if (serialLineCount >= SERIAL_MAX_LINES) {
+    const firstChild = serialTerminal.querySelector('.serial-line');
+    if (firstChild) firstChild.remove();
+    serialLineCount--;
+  }
+
+  // Hapus welcome message jika masih ada
+  const welcome = serialTerminal.querySelector('.serial-welcome-msg');
+  if (welcome) welcome.remove();
+
+  const lineEl = document.createElement('span');
+  lineEl.className = 'serial-line';
+
+  let displayText = '';
+
+  if (serialShowTimestamp.checked) {
+    const now = new Date();
+    const ts = now.toLocaleTimeString('id-ID', { hour12: false }) + '.' + now.getMilliseconds().toString().padStart(3, '0');
+    displayText += `<span class="serial-timestamp">[${ts}]</span>`;
+  }
+
+  if (isSystem) {
+    displayText += `<span style="color: var(--accent-blue)">${escapeHtml(text)}</span>`;
+  } else {
+    displayText += escapeHtml(text);
+  }
+
+  lineEl.innerHTML = displayText;
+  serialTerminal.appendChild(lineEl);
+  serialLineCount++;
+
+  // Log untuk download
+  serialLogContent += text + '\n';
+
+  // Auto-scroll
+  if (serialAutoScroll.checked) {
+    serialTerminal.scrollTop = serialTerminal.scrollHeight;
+  }
+}
+
+function clearTerminal() {
+  serialTerminal.innerHTML = '';
+  serialLineCount = 0;
+  serialLogContent = '';
+  showToast('🗑️ Terminal dibersihkan');
+}
+
+function downloadSerialLog() {
+  if (!serialLogContent) {
+    showToast('ℹ️ Tidak ada log untuk diunduh');
+    return;
+  }
+  const blob = new Blob([serialLogContent], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `serial_log_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📥 Log serial diunduh');
+}
+
+// --- Serial Monitor Event Listeners ---
+if (btnSerialConnect) {
+  btnSerialConnect.addEventListener('click', () => {
+    if (serialIsConnected) {
+      disconnectSerial();
+    } else {
+      connectSerial();
+    }
+  });
+}
+
+if (btnSerialSend) {
+  btnSerialSend.addEventListener('click', () => {
+    const text = serialInput.value.trim();
+    if (text) {
+      sendSerialData(text);
+      serialInput.value = '';
+      serialInput.focus();
+    }
+  });
+}
+
+if (serialInput) {
+  serialInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      btnSerialSend.click();
+    }
+  });
+}
+
+if (btnSerialClear) btnSerialClear.addEventListener('click', clearTerminal);
+if (btnSerialDownload) btnSerialDownload.addEventListener('click', downloadSerialLog);
+
+// =============================================================
+// WEB FLASHER MODULE (esptool-js via CDN)
+// =============================================================
+
+function flasherLog(text, level = 'info') {
+  const line = document.createElement('span');
+  line.className = `console-line ${level}`;
+  line.textContent = `> ${text}`;
+  flasherConsole.appendChild(line);
+  flasherConsole.scrollTop = flasherConsole.scrollHeight;
+}
+
+function updateFlasherUI(connected) {
+  flasherIsConnected = connected;
+  if (connected) {
+    flasherStatus.classList.add('connected');
+    flasherStatusLabel.textContent = 'Terhubung';
+    btnFlasherConnect.classList.add('connected');
+    btnFlasherConnect.querySelector('span').textContent = 'Putuskan';
+    btnEraseFlash.disabled = false;
+  } else {
+    flasherStatus.classList.remove('connected');
+    flasherStatusLabel.textContent = 'Tidak terhubung';
+    btnFlasherConnect.classList.remove('connected');
+    btnFlasherConnect.querySelector('span').textContent = 'Hubungkan Port';
+    btnEraseFlash.disabled = true;
+    btnFlashFirmware.disabled = true;
+    chipInfoCard.classList.add('hidden');
+  }
+}
+
+function updateFlashButtonState() {
+  const hasFirmware = selectedFirmwareFile || selectedServerFirmware;
+  btnFlashFirmware.disabled = !(flasherIsConnected && hasFirmware);
+}
+
+async function loadEsptoolModule() {
+  if (esptoolModule) return esptoolModule;
+
+  flasherLog('Mengunduh esptool-js dari CDN...', 'info');
+  try {
+    esptoolModule = await import('https://unpkg.com/esptool-js@0.4.5/bundle.js');
+    flasherLog('esptool-js berhasil dimuat ✓', 'success');
+    return esptoolModule;
+  } catch (err) {
+    flasherLog(`Gagal memuat esptool-js: ${err.message}`, 'error');
+    showToast('❌ Gagal memuat esptool-js. Pastikan ada koneksi internet.');
+    throw err;
+  }
+}
+
+async function connectFlasher() {
+  if (!isWebSerialSupported) {
+    showToast('❌ Browser tidak mendukung Web Serial API');
+    return;
+  }
+
+  try {
+    const mod = await loadEsptoolModule();
+    const { ESPLoader, Transport } = mod;
+
+    flasherPort = await navigator.serial.requestPort();
+    flasherTransport = new Transport(flasherPort, true);
+
+    flasherLog('Menghubungkan ke perangkat ESP...', 'info');
+
+    const loaderTerminal = {
+      clean() {},
+      writeLine(data) { flasherLog(data, 'info'); },
+      write(data) { /* silent */ }
+    };
+
+    espLoader = new ESPLoader({
+      transport: flasherTransport,
+      baudrate: 115200,
+      terminal: loaderTerminal,
+      romBaudrate: 115200,
+    });
+
+    const chipName = await espLoader.main();
+    flasherLog(`Chip terdeteksi: ${chipName}`, 'success');
+
+    // Tampilkan info chip
+    chipType.textContent = chipName || '—';
+
+    try {
+      const macAddr = await espLoader.readMac();
+      chipMac.textContent = macAddr ? macAddr.toString() : '—';
+    } catch { chipMac.textContent = '—'; }
+
+    try {
+      const flashSizeBytes = await espLoader.getFlashSize();
+      const flashSizeMB = flashSizeBytes ? (flashSizeBytes / (1024 * 1024)).toFixed(0) + ' MB' : '—';
+      chipFlashSize.textContent = flashSizeMB;
+    } catch { chipFlashSize.textContent = '—'; }
+
+    chipCrystal.textContent = espLoader.chipFamily || '—';
+
+    chipInfoCard.classList.remove('hidden');
+    updateFlasherUI(true);
+    updateFlashButtonState();
+    showToast(`🔬 ${chipName} terdeteksi!`);
+
+  } catch (err) {
+    if (err.name !== 'NotFoundError') {
+      console.error('[Flasher] Connect error:', err);
+      flasherLog(`Error: ${err.message}`, 'error');
+      showToast(`❌ Gagal menghubungkan: ${err.message}`);
+    }
+    updateFlasherUI(false);
+  }
+}
+
+async function disconnectFlasher() {
+  try {
+    if (flasherTransport) {
+      await flasherTransport.disconnect();
+      flasherTransport = null;
+    }
+    if (flasherPort) {
+      try { await flasherPort.close(); } catch {}
+      flasherPort = null;
+    }
+  } catch (err) {
+    console.warn('[Flasher] Disconnect:', err.message);
+  }
+  espLoader = null;
+  updateFlasherUI(false);
+  flasherLog('Perangkat diputuskan', 'info');
+  showToast('🔌 Flasher terputus');
+}
+
+async function eraseFlash() {
+  if (!espLoader) {
+    showToast('⚠️ Hubungkan perangkat terlebih dahulu');
+    return;
+  }
+
+  openCustomModal({
+    title: '⚠️ Konfirmasi Erase Flash',
+    bodyHtml: `
+      <p style="color: var(--text-muted); font-size: 0.88rem; line-height: 1.6;">
+        Menghapus seluruh flash memory akan <strong style="color: var(--danger-glow);">menghapus semua data, firmware, dan konfigurasi</strong> pada perangkat.
+        <br><br>Proses ini tidak bisa dibatalkan. Lanjutkan?
+      </p>
+    `,
+    confirmText: 'Ya, Hapus Flash',
+    isDanger: true,
+    onConfirm: async () => {
+      flasherLog('Memulai erase flash...', 'warning');
+      flashProgressContainer.classList.remove('hidden');
+      flashProgressLabel.textContent = 'Menghapus flash...';
+      flashProgressPercent.textContent = '...';
+      flashProgressBar.style.width = '50%';
+
+      try {
+        await espLoader.eraseFlash();
+        flasherLog('Flash berhasil dihapus! ✓', 'success');
+        flashProgressLabel.textContent = 'Selesai!';
+        flashProgressPercent.textContent = '100%';
+        flashProgressBar.style.width = '100%';
+        showToast('✅ Flash memory berhasil dihapus');
+      } catch (err) {
+        flasherLog(`Erase gagal: ${err.message}`, 'error');
+        showToast(`❌ Erase gagal: ${err.message}`);
+      }
+
+      setTimeout(() => flashProgressContainer.classList.add('hidden'), 3000);
+    }
+  });
+}
+
+async function flashFirmware() {
+  if (!espLoader) {
+    showToast('⚠️ Hubungkan perangkat terlebih dahulu');
+    return;
+  }
+
+  let firmwareData = null;
+
+  if (selectedFirmwareFile) {
+    // Dari file upload
+    firmwareData = await selectedFirmwareFile.arrayBuffer();
+    flasherLog(`Firmware dari file: ${selectedFirmwareFile.name} (${(selectedFirmwareFile.size / 1024).toFixed(1)} KB)`, 'info');
+  } else if (selectedServerFirmware) {
+    // Dari server — download dulu
+    flasherLog(`Mengunduh firmware dari server: ${selectedServerFirmware.name}...`, 'info');
+    try {
+      const res = await fetch(selectedServerFirmware.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      firmwareData = await res.arrayBuffer();
+      flasherLog(`Firmware diunduh: ${(firmwareData.byteLength / 1024).toFixed(1)} KB ✓`, 'success');
+    } catch (err) {
+      flasherLog(`Gagal mengunduh firmware: ${err.message}`, 'error');
+      showToast(`❌ Gagal mengunduh firmware`);
+      return;
+    }
+  } else {
+    showToast('⚠️ Pilih firmware terlebih dahulu');
+    return;
+  }
+
+  const offset = parseInt(flashOffset.value) || 0;
+  flasherLog(`Memulai flashing ke offset ${flashOffset.value}...`, 'info');
+
+  flashProgressContainer.classList.remove('hidden');
+  flashProgressLabel.textContent = 'Menulis firmware...';
+  flashProgressPercent.textContent = '0%';
+  flashProgressBar.style.width = '0%';
+
+  // Disable buttons during flash
+  btnFlashFirmware.disabled = true;
+  btnEraseFlash.disabled = true;
+
+  try {
+    const binaryString = Array.from(new Uint8Array(firmwareData))
+      .map(b => String.fromCharCode(b))
+      .join('');
+
+    await espLoader.writeFlash({
+      fileArray: [{ data: binaryString, address: offset }],
+      flashSize: 'keep',
+      flashMode: 'keep',
+      flashFreq: 'keep',
+      eraseAll: false,
+      compress: true,
+      reportProgress: (fileIndex, written, total) => {
+        const percent = Math.round((written / total) * 100);
+        flashProgressPercent.textContent = `${percent}%`;
+        flashProgressBar.style.width = `${percent}%`;
+        flashProgressLabel.textContent = `Menulis... (${(written / 1024).toFixed(0)} / ${(total / 1024).toFixed(0)} KB)`;
+      }
+    });
+
+    flasherLog('Firmware berhasil ditulis! ✓', 'success');
+    flashProgressLabel.textContent = 'Selesai! Mereset perangkat...';
+    flashProgressPercent.textContent = '100%';
+    flashProgressBar.style.width = '100%';
+    showToast('✅ Firmware berhasil di-flash!');
+
+    // Hard reset
+    try {
+      await espLoader.hardReset();
+      flasherLog('Perangkat di-reset. Firmware baru aktif.', 'success');
+    } catch {}
+
+  } catch (err) {
+    flasherLog(`Flash gagal: ${err.message}`, 'error');
+    showToast(`❌ Flash gagal: ${err.message}`);
+  }
+
+  btnEraseFlash.disabled = false;
+  updateFlashButtonState();
+
+  setTimeout(() => flashProgressContainer.classList.add('hidden'), 5000);
+}
+
+// --- Firmware Source Switcher ---
+if (fwSrcUploadBtn && fwSrcServerBtn) {
+  fwSrcUploadBtn.addEventListener('click', () => {
+    fwSrcUploadBtn.classList.add('active');
+    fwSrcServerBtn.classList.remove('active');
+    fwSrcUpload.classList.remove('hidden');
+    fwSrcServer.classList.add('hidden');
+  });
+
+  fwSrcServerBtn.addEventListener('click', () => {
+    fwSrcServerBtn.classList.add('active');
+    fwSrcUploadBtn.classList.remove('active');
+    fwSrcServer.classList.remove('hidden');
+    fwSrcUpload.classList.add('hidden');
+    loadServerFirmwareList();
+  });
+}
+
+// --- File Upload Handling ---
+if (fileDropZone) {
+  fileDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    fileDropZone.classList.add('drag-over');
+  });
+
+  fileDropZone.addEventListener('dragleave', () => {
+    fileDropZone.classList.remove('drag-over');
+  });
+
+  fileDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileDropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.bin')) {
+      handleFirmwareFileSelected(file);
+    } else {
+      showToast('⚠️ Hanya file .bin yang diterima');
+    }
+  });
+}
+
+if (firmwareFileInput) {
+  firmwareFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleFirmwareFileSelected(file);
+  });
+}
+
+function handleFirmwareFileSelected(file) {
+  selectedFirmwareFile = file;
+  selectedServerFirmware = null;
+  selectedFileName.textContent = file.name;
+  selectedFileSize.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+  fileDropZone.classList.add('hidden');
+  selectedFileInfo.classList.remove('hidden');
+  updateFlashButtonState();
+  flasherLog(`File dipilih: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'info');
+}
+
+if (btnClearFile) {
+  btnClearFile.addEventListener('click', () => {
+    selectedFirmwareFile = null;
+    firmwareFileInput.value = '';
+    selectedFileInfo.classList.add('hidden');
+    fileDropZone.classList.remove('hidden');
+    updateFlashButtonState();
+  });
+}
+
+// --- Server Firmware List ---
+async function loadServerFirmwareList() {
+  serverFirmwareList.innerHTML = '<div class="empty-state-card"><span>Memuat...</span></div>';
+
+  try {
+    const res = await fetch('/api/firmwares', {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+
+    if (!data.success || !data.data || data.data.length === 0) {
+      serverFirmwareList.innerHTML = `
+        <div class="empty-state-card">
+          <span>Tidak ada file .bin di folder <code>firmwares/</code> server.</span>
+        </div>`;
+      return;
+    }
+
+    serverFirmwareList.innerHTML = '';
+    data.data.forEach(fw => {
+      const item = document.createElement('div');
+      item.className = 'fw-server-item';
+      item.innerHTML = `
+        <span class="fw-icon">📦</span>
+        <div class="fw-details">
+          <span class="fw-name">${escapeHtml(fw.name)}</span>
+          <span class="fw-meta">${(fw.size / 1024).toFixed(1)} KB &bull; ${new Date(fw.modified).toLocaleString('id-ID')}</span>
+        </div>
+      `;
+      item.addEventListener('click', () => {
+        // Deselect semua
+        serverFirmwareList.querySelectorAll('.fw-server-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        selectedServerFirmware = fw;
+        selectedFirmwareFile = null;
+        updateFlashButtonState();
+        flasherLog(`Firmware server dipilih: ${fw.name}`, 'info');
+      });
+      serverFirmwareList.appendChild(item);
+    });
+  } catch (err) {
+    serverFirmwareList.innerHTML = `
+      <div class="empty-state-card">
+        <span>Gagal memuat daftar firmware</span>
+      </div>`;
+  }
+}
+
+// --- Flasher Button Events ---
+if (btnFlasherConnect) {
+  btnFlasherConnect.addEventListener('click', () => {
+    if (flasherIsConnected) {
+      disconnectFlasher();
+    } else {
+      connectFlasher();
+    }
+  });
+}
+
+if (btnEraseFlash) btnEraseFlash.addEventListener('click', eraseFlash);
+if (btnFlashFirmware) btnFlashFirmware.addEventListener('click', flashFirmware);
+if (btnClearFlasherConsole) {
+  btnClearFlasherConsole.addEventListener('click', () => {
+    flasherConsole.innerHTML = '<span class="console-line info">> Console dibersihkan</span>';
+  });
+}
+
+// --- Show unsupported banner when Tools tab is opened ---
+function checkWebSerialSupport() {
+  if (!isWebSerialSupported && webSerialUnsupported) {
+    webSerialUnsupported.classList.remove('hidden');
   }
 }
 
