@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Smart Switch | IoT Controller Dashboard</title>
-  <meta name="description" content="Aplikasi PWA Kontrol Otomatis Relays & Perangkat IoT Multi-Device">
+  <title>AgyGateway Hub | Universal IoT Controller & Gateway</title>
+  <meta name="description" content="Platform Universal IoT Gateway & Controller untuk AgyGatewayClient Multi-Device">
   <meta name="theme-color" content="#080b11">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=3.0">
+  <link rel="stylesheet" href="/style.css?v=3.5">
 </head>
 <body>
   <!-- ==========================================
@@ -30,8 +30,8 @@
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
         </div>
-        <h1 class="login-title">Akses Smart Switch</h1>
-        <p class="login-desc">Masukkan kredensial administrator Anda</p>
+        <h1 class="login-title">AgyGateway Hub</h1>
+        <p class="login-desc">Masukkan kredensial administrator gateway</p>
       </div>
 
       <form id="loginForm" class="login-form">
@@ -79,8 +79,8 @@
           </svg>
         </div>
         <div>
-          <h1 class="brand-title">Smart Switch</h1>
-          <p class="brand-subtitle">IoT Multi-Device Hub</p>
+          <h1 class="brand-title">AgyGateway Hub</h1>
+          <p class="brand-subtitle">Universal IoT Platform</p>
         </div>
       </div>
       
@@ -89,7 +89,7 @@
           <span class="status-dot"></span>
           <span class="status-text">Server</span>
         </div>
-        <div id="hardwareStatusBadge" class="status-pill offline" title="Status Koneksi Wemos">
+        <div id="hardwareStatusBadge" class="status-pill offline" title="Status Koneksi Hardware IoT">
           <span class="status-dot hw"></span>
           <span id="hardwareStatusText" class="status-text">Hardware</span>
         </div>
@@ -108,32 +108,44 @@
       <div class="stat-card">
         <div class="stat-icon-wrapper active-glow">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
           </svg>
         </div>
         <div class="stat-details">
-          <span class="stat-value" id="statActiveRelays">0/4</span>
-          <span class="stat-label">Relay Aktif</span>
+          <span class="stat-value" id="statActiveDevices">0 Online</span>
+          <span class="stat-label">Perangkat IoT</span>
         </div>
       </div>
 
       <div class="stat-card">
         <div class="stat-icon-wrapper sched-glow">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
         </div>
         <div class="stat-details">
-          <span class="stat-value" id="statActiveSchedules">0</span>
-          <span class="stat-label">Jadwal Aktif</span>
+          <span class="stat-value" id="statActiveActuators">0 Aktif</span>
+          <span class="stat-label">Aktuator Nyala</span>
         </div>
       </div>
 
       <div class="stat-card">
         <div class="stat-icon-wrapper wifi-glow">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+        </div>
+        <div class="stat-details">
+          <span class="stat-value" id="statActiveSensors">0 Sensor</span>
+          <span class="stat-label">Sensor Terpasang</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper ping-glow">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
             <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
             <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
@@ -143,19 +155,7 @@
         </div>
         <div class="stat-details">
           <span class="stat-value" id="wifiRssi">-- dBm</span>
-          <span class="stat-label">Sinyal WiFi</span>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon-wrapper ping-glow">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-          </svg>
-        </div>
-        <div class="stat-details">
-          <span class="stat-value" id="pingDisplay">~ ms</span>
-          <span class="stat-label">Latensi Web</span>
+          <span class="stat-label">Sinyal / Latensi</span>
         </div>
       </div>
     </section>
@@ -163,65 +163,58 @@
     <!-- Device Selector Bar -->
     <section class="device-bar">
       <div class="device-bar-left">
-        <span class="device-bar-label">Perangkat:</span>
+        <span class="device-bar-label">Node:</span>
         <select id="deviceSelect" class="device-dropdown">
-          <option value="wemos-relay-01">Memuat Perangkat...</option>
+          <option value="">Memuat Perangkat...</option>
         </select>
+        <button id="btnOpenAddDevice" class="btn-manage-pins" type="button" title="Tambah IoT Baru / Buka Wizard Pairing">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>+ Tambah IoT</span>
+        </button>
       </div>
       <div class="device-bar-right">
-        <span id="deviceIdBadge" class="device-id-badge">wemos-relay-01</span>
+        <span id="deviceChipBadge" class="device-chip-badge">ESP</span>
+        <span id="deviceIdBadge" class="device-id-badge">node-01</span>
         <button id="btnOpenPinManager" class="btn-manage-pins" type="button" title="Atur Pin GPIO & Sensor Tanpa Flash Ulang">
           <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
             <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span>Atur Pin & Sensor</span>
+          <span>Modul & Pin</span>
+        </button>
+        <button id="btnDeleteDevice" class="btn-delete-device" type="button" title="Hapus Perangkat dari Sistem">
+          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+          <span>Hapus</span>
         </button>
       </div>
     </section>
 
     <!-- ==========================================
-         TAB 1: KONTROL (Relay & Master & Scenes)
+         TAB 1: KONTROL UNIVERSAL (Polymorphic Grid)
     ========================================== -->
     <main id="tabKontrol" class="tab-view active">
-      <!-- Quick Scenes -->
-      <section class="quick-scenes-section">
-        <div class="section-title-sm">
-          <span>⚡ Skenario Cepat</span>
-        </div>
-        <div class="scenes-grid">
-          <button id="btnSceneWater10" class="scene-card" type="button">
-            <div class="scene-icon">🚿</div>
-            <div class="scene-text">
-              <span class="scene-name">Siram 10m</span>
-              <span class="scene-desc">Relay 1 Otomatis Mati</span>
-            </div>
-          </button>
-          <button id="btnSceneWater15" class="scene-card" type="button">
-            <div class="scene-icon">💧</div>
-            <div class="scene-text">
-              <span class="scene-name">Siram 15m</span>
-              <span class="scene-desc">Relay 1 Otomatis Mati</span>
-            </div>
-          </button>
-          <button id="btnSceneAllOff" class="scene-card danger" type="button">
-            <div class="scene-icon">🛑</div>
-            <div class="scene-text">
-              <span class="scene-name">Matikan Semua</span>
-              <span class="scene-desc">Standby Aman</span>
-            </div>
-          </button>
-        </div>
-      </section>
+      <!-- Component Filter Bar -->
+      <div class="component-filter-bar">
+        <button class="comp-filter-pill active" data-comp-filter="all">Semua Modul</button>
+        <button class="comp-filter-pill" data-comp-filter="actuator">Saklar & Dimmer</button>
+        <button class="comp-filter-pill" data-comp-filter="sensor">Sensor Lingkungan</button>
+        <button class="comp-filter-pill" data-comp-filter="indicator">Indikator Digital</button>
+      </div>
 
-      <!-- Master Controls -->
-      <section class="master-section">
+      <!-- Master Controls (Hanya aktif jika ada saklar) -->
+      <section class="master-section" id="masterSwitchSection">
         <button id="btnAllOn" class="btn-master btn-all-on" type="button">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
             <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
             <line x1="12" y1="2" x2="12" y2="12"></line>
           </svg>
-          <span>Nyalakan Semua</span>
+          <span>Nyalakan Semua Saklar</span>
         </button>
         <button id="btnAllOff" class="btn-master btn-all-off" type="button">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
@@ -229,29 +222,18 @@
             <line x1="15" y1="9" x2="9" y2="15"></line>
             <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
-          <span>Matikan Semua</span>
+          <span>Matikan Semua Saklar</span>
         </button>
       </section>
 
-      <!-- Relays Grid -->
-      <section class="relays-grid" id="relaysGrid">
+      <!-- Unified Universal Components Grid -->
+      <section class="components-grid" id="componentsGrid">
         <!-- Di-render dinamis oleh app.js -->
       </section>
 
-      <!-- Modular Sensors & Dynamic Components Grid -->
-      <section class="components-section" id="componentsSection">
-        <div class="section-header-row">
-          <div class="section-title-sm">
-            <span>📊 Sensor & Komponen Dinamis</span>
-          </div>
-          <button id="btnQuickAddPin" class="btn-text-action" type="button">
-            + Tambah Sensor / Pin
-          </button>
-        </div>
-        <div class="components-grid" id="componentsGrid">
-          <!-- Di-render dinamis oleh app.js -->
-        </div>
-      </section>
+      <!-- Legacy / hidden compatibility grid container -->
+      <div id="relaysGrid" class="hidden"></div>
+      <div id="componentsSection" class="hidden"></div>
 
       <!-- Device Telemetry Summary Card -->
       <section class="device-card-compact">
@@ -259,7 +241,7 @@
           <div class="telemetry-col">
             <span class="telem-label">Nama Perangkat</span>
             <div class="telem-val-wrap">
-              <span id="deviceName" class="telem-val-text">Wemos D1 Mini</span>
+              <span id="deviceName" class="telem-val-text">Memuat...</span>
               <button id="btnRenameDevice" class="btn-icon-xs" title="Ubah Nama">
                 <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
                   <path d="M12 20h9"></path>
@@ -269,7 +251,7 @@
             </div>
           </div>
           <div class="telemetry-col">
-            <span class="telem-label">Uptime Wemos</span>
+            <span class="telem-label">Info Chip & Uptime</span>
             <span id="uptimeDisplay" class="telem-val-text font-mono">00:00:00</span>
           </div>
         </div>
@@ -277,10 +259,9 @@
     </main>
 
     <!-- ==========================================
-         TAB 2: JADWAL & TIMER
+         TAB 2: JADWAL & TIMER UNIVERSAL
     ========================================== -->
     <main id="tabJadwal" class="tab-view hidden">
-      <!-- Segmented Sub Tabs: Countdown vs Jadwal -->
       <div class="segmented-control">
         <button id="subTabJadwalBtn" class="seg-btn active" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
@@ -302,25 +283,29 @@
 
       <!-- Subview: Jadwal Otomatis -->
       <section id="subViewJadwal" class="sub-view-section">
-        <!-- Add Schedule Accordion / Form -->
         <div class="section-card">
           <div class="section-header-compact">
             <div class="section-title-group">
               <h3 class="section-title">Tambah Jadwal Baru</h3>
-              <p class="section-desc">Atur waktu otomatis saklar hidup / mati</p>
+              <p class="section-desc">Atur waktu otomatis untuk komponen aktuator (Saklar / Dimmer)</p>
             </div>
           </div>
 
           <form id="scheduleForm" class="schedule-form">
             <div class="sched-form-row">
               <div class="sched-field">
-                <label class="sched-label">Relay Target</label>
-                <select id="schedChannel" class="sched-input" required>
-                  <option value="1">Relay #1</option>
-                  <option value="2">Relay #2</option>
-                  <option value="3">Relay #3</option>
-                  <option value="4">Relay #4</option>
+                <label class="sched-label">Perangkat Target</label>
+                <select id="schedDevice" class="sched-input" required>
+                  <option value="">Pilih Perangkat...</option>
                 </select>
+              </div>
+              <div class="sched-field">
+                <label class="sched-label">Komponen Target</label>
+                <select id="schedComponent" class="sched-input" required>
+                  <option value="">Pilih Komponen...</option>
+                </select>
+                <!-- Hidden legacy fallback -->
+                <select id="schedChannel" class="hidden"><option value="1">1</option></select>
               </div>
               <div class="sched-field">
                 <label class="sched-label">Aksi</label>
@@ -328,14 +313,15 @@
                   <option value="on">Nyalakan (ON)</option>
                   <option value="off">Matikan (OFF)</option>
                   <option value="toggle">Toggle</option>
+                  <option value="value">Set Nilai (Dimmer)</option>
                 </select>
               </div>
               <div class="sched-field">
-                <label class="sched-label">Jam Mulai</label>
+                <label class="sched-label">Jam Eksekusi</label>
                 <input type="time" id="schedTime" class="sched-input" required>
               </div>
               <div class="sched-field" id="schedDurationGroup">
-                <label class="sched-label">Durasi (Menit)</label>
+                <label class="sched-label">Durasi Nyala (Menit)</label>
                 <input type="number" id="schedDuration" class="sched-input" min="1" max="1440" placeholder="Auto-off (opsional)">
               </div>
             </div>
@@ -355,7 +341,7 @@
 
             <div class="sched-field">
               <label class="sched-label">Label Jadwal (opsional)</label>
-              <input type="text" id="schedLabel" class="sched-input" placeholder="Misal: Siram Pagi Kebun" maxlength="40">
+              <input type="text" id="schedLabel" class="sched-input" placeholder="Misal: Lampu Teras Otomatis" maxlength="40">
             </div>
 
             <button type="submit" class="btn-add-schedule" id="btnAddSchedule">
@@ -385,8 +371,8 @@
         <div class="section-card">
           <div class="section-header-compact">
             <div class="section-title-group">
-              <h3 class="section-title">Timer Hitung Mundur</h3>
-              <p class="section-desc">Nyalakan saklar selama durasi tertentu lalu otomatis padam</p>
+              <h3 class="section-title">Timer Hitung Mundur Mandiri</h3>
+              <p class="section-desc">Timer berjalan independen di prosesor ESP (tetap mati tepat waktu meskipun koneksi internet terputus)</p>
             </div>
           </div>
           <div class="timer-grid" id="timerGrid">
@@ -404,7 +390,7 @@
         <div class="section-header-compact flex-between">
           <div>
             <h3 class="section-title">Riwayat Aktivitas</h3>
-            <p class="section-desc">Log peristiwa saklar, timer, & eksekusi jadwal</p>
+            <p class="section-desc">Log peristiwa telemetri, kontrol, jadwal, dan sistem IoT</p>
           </div>
           <button id="btnRefreshLogs" class="btn-action-sm" type="button" title="Muat ulang log">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
@@ -432,6 +418,33 @@
          TAB 4: PENGATURAN & KEAMANAN
     ========================================== -->
     <main id="tabPengaturan" class="tab-view hidden">
+      <!-- Pairing Credentials Card -->
+      <div class="section-card">
+        <div class="section-header-compact">
+          <h3 class="section-title">Kredensial Gateway Server & Pairing</h3>
+          <p class="section-desc">Gunakan informasi ini saat menyambungkan perangkat baru di Captive Portal</p>
+        </div>
+        <div class="settings-content">
+          <div class="settings-item-row">
+            <div>
+              <div class="settings-item-title">Device Secret Key Server</div>
+              <div class="settings-item-sub">Kunci rahasia global yang wajib dimasukkan pada sketch / Captive Portal ESP</div>
+            </div>
+            <code class="font-mono" style="padding: 4px 8px; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 0.82rem;">wemos-secret-key-3377</code>
+          </div>
+          <div class="settings-item-row">
+            <div>
+              <div class="settings-item-title">Endpoint WebSocket</div>
+              <div class="settings-item-sub">Path WebSocket untuk komunikasi hardware dan browser</div>
+            </div>
+            <code class="font-mono" style="padding: 4px 8px; background: rgba(255,255,255,0.06); border-radius: 6px; font-size: 0.82rem;">/ws (Port 3050)</code>
+          </div>
+          <div class="status-info-box">
+            <span>🛡️ Protokol keamanan token HMAC aktif. Kunci rahasia hardware hanya dikirim saat jabat tangan registrasi pertama. Komunikasi berikutnya menggunakan token sesi berputar.</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Database & Redundancy Sync Card -->
       <div class="section-card">
         <div class="section-header-compact">
@@ -451,16 +464,13 @@
               <span>Sinkronkan</span>
             </button>
           </div>
-          <div class="status-info-box">
-            <span>💡 Mode SQLite WAL Aktif. Setiap perubahan di web langsung tercermin otomatis ke file <code>schedules.json</code> dan <code>state.json</code>.</span>
-          </div>
         </div>
       </div>
 
       <!-- Relays Renaming Card -->
       <div class="section-card">
         <div class="section-header-compact">
-          <h3 class="section-title">Kustomisasi Nama Saklar</h3>
+          <h3 class="section-title">Kustomisasi Nama Saklar Cepat</h3>
           <p class="section-desc">Beri nama saklar agar mudah dikenali (contoh: Pompa Siram, Lampu Taman)</p>
         </div>
         <div class="relay-naming-list" id="relayNamingList">
@@ -509,21 +519,21 @@
 
       <!-- App Info Card -->
       <div class="section-card text-center">
-        <p class="info-meta">IoT Smart Switch Controller &bull; Wemos D1 Mini &bull; Versi 3.0</p>
-        <p class="info-meta sub">Engine: Node.js, Express, SQLite WAL, Native WebSocket</p>
+        <p class="info-meta">AgyGateway Server &bull; Universal IoT Hub &bull; Versi 3.5</p>
+        <p class="info-meta sub">Engine: Node.js, Express, SQLite WAL, Native WebSocket &bull; Companion: AgyGatewayClient</p>
       </div>
     </main>
 
     <!-- ==========================================
-         TAB 5: TOOLS (Serial Monitor & Web Flasher)
+         TAB 5: TOOLS (Serial Monitor, Web Flasher & Remote OTA)
     ========================================== -->
     <main id="tabTools" class="tab-view hidden">
       <!-- Browser Compatibility Banner -->
       <div id="webSerialUnsupported" class="tools-unsupported-banner hidden">
         <div class="unsupported-icon">⚠️</div>
         <div class="unsupported-text">
-          <strong>Browser Tidak Didukung</strong>
-          <p>Web Serial API hanya tersedia di Google Chrome, Microsoft Edge, atau Opera versi 89+. Silakan buka halaman ini di browser yang didukung.</p>
+          <strong>Browser Tidak Mendukung Web Serial API</strong>
+          <p>Fitur USB Serial Monitor dan Web Flasher membutuhkan Google Chrome atau Microsoft Edge versi 89+.</p>
         </div>
       </div>
 
@@ -542,14 +552,21 @@
             <polyline points="7 10 12 15 17 10"></polyline>
             <line x1="12" y1="15" x2="12" y2="3"></line>
           </svg>
-          <span>Web Flasher</span>
+          <span>Web Flasher (USB)</span>
+        </button>
+        <button id="subTabOtaBtn" class="seg-btn" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+            <path d="M12 12v9"></path>
+            <path d="m16 16-4-4-4 4"></path>
+          </svg>
+          <span>Remote OTA (WiFi)</span>
         </button>
       </div>
 
-      <!-- Subview: Serial Monitor -->
+      <!-- Subview 1: Serial Monitor -->
       <section id="subViewSerial" class="sub-view-section">
         <div class="section-card serial-monitor-card">
-          <!-- Serial Toolbar -->
           <div class="serial-toolbar">
             <div class="serial-toolbar-left">
               <div class="serial-status-indicator" id="serialStatusIndicator">
@@ -579,7 +596,6 @@
             </div>
           </div>
 
-          <!-- Terminal Output -->
           <div class="serial-terminal" id="serialTerminal">
             <div class="serial-welcome-msg">
               <span class="terminal-prompt">&gt;</span> Klik <strong>"Hubungkan"</strong> untuk memulai Serial Monitor...
@@ -587,7 +603,6 @@
             </div>
           </div>
 
-          <!-- Serial Input Row -->
           <div class="serial-input-row">
             <input type="text" id="serialInput" class="serial-input" placeholder="Ketik perintah serial..." disabled>
             <button id="btnSerialSend" class="btn-serial-send" type="button" disabled title="Kirim">
@@ -598,7 +613,6 @@
             </button>
           </div>
 
-          <!-- Serial Actions -->
           <div class="serial-actions-bar">
             <label class="serial-checkbox-label">
               <input type="checkbox" id="serialAutoScroll" checked>
@@ -610,18 +624,9 @@
             </label>
             <div class="serial-actions-right">
               <button id="btnSerialClear" class="btn-serial-action" type="button">
-                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
                 <span>Hapus</span>
               </button>
               <button id="btnSerialDownload" class="btn-serial-action" type="button">
-                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
                 <span>Download</span>
               </button>
             </div>
@@ -629,17 +634,16 @@
         </div>
       </section>
 
-      <!-- Subview: Web Flasher -->
+      <!-- Subview 2: Web Flasher (USB) -->
       <section id="subViewFlasher" class="sub-view-section hidden">
         <div class="section-card flasher-card">
           <div class="section-header-compact">
             <div class="section-title-group">
-              <h3 class="section-title">⚡ ESP Web Flasher</h3>
-              <p class="section-desc">Flash firmware .bin langsung ke ESP8266/ESP32 via USB</p>
+              <h3 class="section-title">⚡ ESP Web Flasher (Zero-Code Onboarding)</h3>
+              <p class="section-desc">Flash firmware .bin langsung ke ESP8266/ESP32 via kabel USB dari browser</p>
             </div>
           </div>
 
-          <!-- Flasher Connection -->
           <div class="flasher-connect-row">
             <div class="flasher-status" id="flasherStatus">
               <span class="flasher-status-dot"></span>
@@ -652,48 +656,45 @@
                 <line x1="6" y1="6" x2="6.01" y2="6"></line>
                 <line x1="6" y1="18" x2="6.01" y2="18"></line>
               </svg>
-              <span>Hubungkan Port</span>
+              <span>Hubungkan Port COM</span>
             </button>
           </div>
 
-          <!-- Chip Info Card -->
           <div id="chipInfoCard" class="chip-info-card hidden">
             <div class="chip-info-header">
-              <span class="chip-icon">🔬</span>
+              <span class="chip-icon">🔍</span>
               <span class="chip-title">Info Chip Terdeteksi</span>
             </div>
             <div class="chip-info-grid">
               <div class="chip-info-item">
                 <span class="chip-label">Chip</span>
-                <span id="chipType" class="chip-value">—</span>
+                <span id="chipType" class="chip-value">-</span>
               </div>
               <div class="chip-info-item">
                 <span class="chip-label">MAC Address</span>
-                <span id="chipMac" class="chip-value font-mono">—</span>
+                <span id="chipMac" class="chip-value font-mono">-</span>
               </div>
               <div class="chip-info-item">
                 <span class="chip-label">Flash Size</span>
-                <span id="chipFlashSize" class="chip-value">—</span>
+                <span id="chipFlashSize" class="chip-value">-</span>
               </div>
               <div class="chip-info-item">
                 <span class="chip-label">Crystal</span>
-                <span id="chipCrystal" class="chip-value">—</span>
+                <span id="chipCrystal" class="chip-value">-</span>
               </div>
             </div>
           </div>
 
-          <!-- Firmware Source -->
           <div class="flasher-firmware-section">
             <div class="firmware-source-tabs">
               <button type="button" class="fw-src-btn active" data-fw-src="upload" id="fwSrcUploadBtn">
-                📁 Upload File
+                📁 Upload File .bin
               </button>
               <button type="button" class="fw-src-btn" data-fw-src="server" id="fwSrcServerBtn">
-                🗄️ Dari Server
+                🌐 Dari Server
               </button>
             </div>
 
-            <!-- Upload File -->
             <div id="fwSrcUpload" class="fw-src-panel">
               <div class="file-drop-zone" id="fileDropZone">
                 <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="1.5" fill="none">
@@ -701,21 +702,20 @@
                   <polyline points="17 8 12 3 7 8"></polyline>
                   <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
-                <p>Drag & drop file <strong>.bin</strong> di sini</p>
-                <p class="file-drop-sub">atau klik untuk memilih</p>
+                <p>Drag & drop file <strong>.bin</strong> firmware di sini</p>
+                <p class="file-drop-sub">atau klik untuk memilih dari komputer</p>
                 <input type="file" id="firmwareFileInput" accept=".bin" class="file-input-hidden">
               </div>
               <div id="selectedFileInfo" class="selected-file-info hidden">
                 <span class="file-icon">📦</span>
                 <div class="file-details">
-                  <span id="selectedFileName" class="file-name">—</span>
-                  <span id="selectedFileSize" class="file-size">—</span>
+                  <span id="selectedFileName" class="file-name">-</span>
+                  <span id="selectedFileSize" class="file-size">-</span>
                 </div>
                 <button id="btnClearFile" class="btn-clear-file" type="button" title="Hapus">&times;</button>
               </div>
             </div>
 
-            <!-- Server Firmware List -->
             <div id="fwSrcServer" class="fw-src-panel hidden">
               <div id="serverFirmwareList" class="server-fw-list">
                 <div class="empty-state-card">
@@ -725,7 +725,6 @@
             </div>
           </div>
 
-          <!-- Flash Options -->
           <div class="flash-options-row">
             <div class="flash-option">
               <label class="sched-label">Offset Flash</label>
@@ -739,24 +738,15 @@
             </div>
           </div>
 
-          <!-- Flash Action Buttons -->
           <div class="flash-actions-row">
             <button id="btnEraseFlash" class="btn-flash-action btn-erase" type="button" disabled>
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-              </svg>
               <span>Erase Flash</span>
             </button>
             <button id="btnFlashFirmware" class="btn-flash-action btn-flash" type="button" disabled>
-              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-              </svg>
-              <span>Flash Firmware</span>
+              <span>Flash Firmware Sekarang</span>
             </button>
           </div>
 
-          <!-- Flash Progress -->
           <div id="flashProgressContainer" class="flash-progress-container hidden">
             <div class="flash-progress-header">
               <span id="flashProgressLabel">Mempersiapkan...</span>
@@ -767,20 +757,66 @@
             </div>
           </div>
 
-          <!-- Flasher Console Output -->
           <div class="flasher-console">
             <div class="flasher-console-header">
-              <span>📋 Console Output</span>
+              <span>🖥️ Console Output</span>
               <button id="btnClearFlasherConsole" class="btn-serial-action" type="button">
-                <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
                 <span>Hapus</span>
               </button>
             </div>
             <div class="flasher-console-output" id="flasherConsole">
               <span class="console-line info">&gt; Siap menerima instruksi flash...</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Subview 3: Remote OTA (WiFi) -->
+      <section id="subViewOta" class="sub-view-section hidden">
+        <div class="section-card">
+          <div class="section-header-compact">
+            <div class="section-title-group">
+              <h3 class="section-title">☁️ Over-The-Air (OTA) Firmware Update</h3>
+              <p class="section-desc">Kirim update firmware langsung melalui jaringan WiFi tanpa perlu mencabut kabel</p>
+            </div>
+          </div>
+
+          <div class="ota-container">
+            <div class="form-group">
+              <label class="form-label">Pilih Perangkat Target</label>
+              <select id="otaTargetDevice" class="form-select">
+                <option value="">Pilih node yang sedang online...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Pilih File Firmware (.bin)</label>
+              <select id="otaFirmwareSelect" class="form-select">
+                <option value="">Pilih firmware di server...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Atau Masukkan URL Firmware Langsung</label>
+              <input type="url" id="otaCustomUrl" class="form-input" placeholder="http://... / firmwares/update.bin">
+            </div>
+
+            <button id="btnStartOta" class="btn-primary-action" type="button">
+              <span>🚀 Mulai OTA Update ke Hardware</span>
+            </button>
+
+            <!-- Live OTA Progress Bar -->
+            <div id="otaLiveProgressContainer" class="ota-progress-box hidden">
+              <div class="flash-progress-header">
+                <span id="otaProgressLabel">Node sedang mengunduh firmware...</span>
+                <span id="otaProgressPercent" style="font-weight:700; color:var(--primary-glow);">0%</span>
+              </div>
+              <div class="flash-progress-track">
+                <div id="otaProgressBar" class="flash-progress-fill" style="width: 0%"></div>
+              </div>
+              <div id="otaByteDetails" style="font-size: 0.72rem; color: var(--text-subtle); margin-top: 6px; text-align: right;">
+                0 / 0 KB
+              </div>
             </div>
           </div>
         </div>
@@ -825,7 +861,7 @@
         <div class="nav-icon-wrap">
           <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
             <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </div>
         <span class="nav-label">Pengaturan</span>
@@ -844,14 +880,109 @@
   </div>
 
   <!-- ==========================================
-       MODAL: PIN & SENSOR MANAGER (Zero-Code Dynamic Config)
+       MODAL 1: TAMBAH IOT BARU (Pairing Wizard)
+  ========================================== -->
+  <div id="modalAddDevice" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title">✨ Tambah Perangkat IoT Baru</h3>
+          <span class="modal-subtitle">Panduan mudah menghubungkan mikrokontroler ke server</span>
+        </div>
+        <button type="button" id="btnCloseAddDevice" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="wizard-tabs">
+        <button type="button" class="wizard-tab-btn active" data-wizard-tab="wizPemula">
+          🚀 Pemula (Zero-Code & Web Flasher)
+        </button>
+        <button type="button" class="wizard-tab-btn" data-wizard-tab="wizMahir">
+          💻 Mahir (Sketch C++ Arduino)
+        </button>
+      </div>
+
+      <div class="modal-body modal-scrollable">
+        <!-- Form Daftarkan ID di Server -->
+        <div class="section-card" style="margin-bottom: 16px;">
+          <h4 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--primary-glow);">1. Buat Profil Perangkat di Server</h4>
+          <form id="formRegisterDevice" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="text" id="newDeviceId" class="form-input" placeholder="Device ID unik (e.g. node-taman)" required style="flex: 1; min-width: 140px;">
+            <input type="text" id="newDeviceName" class="form-input" placeholder="Nama Label (e.g. Pompa Kebun)" style="flex: 1; min-width: 140px;">
+            <button type="submit" class="btn-primary-action" style="white-space: nowrap;">
+              + Daftarkan Node
+            </button>
+          </form>
+        </div>
+
+        <!-- TAB PEMULA -->
+        <div id="wizPemula" class="wizard-panel active">
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; color: var(--text-muted);">
+            <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border-left: 3px solid var(--accent-blue);">
+              <strong style="color: var(--text-main);">Langkah A: Flash Firmware Universal</strong>
+              <p style="margin: 4px 0 8px 0;">Tancapkan ESP ke USB laptop/PC. Buka menu <strong>Tab Tools &gt; Web Flasher</strong>, pilih firmware universal, lalu klik <em>Flash Firmware</em>.</p>
+              <button type="button" class="btn-action-primary" onclick="switchMainTab('tabTools'); switchSubTab('flasher'); closeModal('modalAddDevice');">
+                Buka Web Flasher USB Sekarang ➔
+              </button>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border-left: 3px solid var(--primary-glow);">
+              <strong style="color: var(--text-main);">Langkah B: Sambungkan via WiFi Captive Portal</strong>
+              <ol style="margin: 6px 0 0 18px; line-height: 1.6;">
+                <li>Nyalakan ESP. Cari WiFi bernama <code>AGY-SETUP</code> dari HP / Laptop Anda.</li>
+                <li>Kata sandi AP: <code>admin1234</code>.</li>
+                <li>Pop-up login akan muncul otomatis (atau buka browser ketik: <code>http://192.168.4.1</code>).</li>
+                <li>Masukkan Nama WiFi rumah, Password WiFi, Host Gateway, dan <strong>Device Key</strong>:</li>
+              </ol>
+              <div style="margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.4); border-radius: 6px; font-family: monospace; font-size: 0.78rem;">
+                Host: <span id="wizHostDisplay">IP Server ini</span> | Port: 3050 | Device Key: <code>wemos-secret-key-3377</code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB MAHIR -->
+        <div id="wizMahir" class="wizard-panel hidden">
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">Gunakan library <code>AgyGatewayClient</code> di PlatformIO atau Arduino IDE:</p>
+          <div class="code-snippet-box">
+            <button type="button" class="btn-copy-code" id="btnCopySketch">Salin Kode</button>
+            <pre id="sketchSnippetCode">#include &lt;Arduino.h&gt;
+#include &lt;AgyGatewayClient.h&gt;
+
+AgyGatewayClient iot;
+
+void setup() {
+  Serial.begin(115200);
+  iot.enableWatchdog(8);
+  iot.enableStatusLed(LED_BUILTIN, true);
+  iot.enableDynamicPins(true);
+  
+  // AutoConnect ke WiFi tersimpan atau buka Portal
+  iot.autoConnect("AGY-SETUP", "admin1234", 60);
+}
+
+void loop() {
+  iot.loop();
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 2: ATUR PIN & SENSOR MANAGER (Zero-Code Dynamic Config)
   ========================================== -->
   <div id="modalPinManager" class="modal-backdrop hidden">
     <div class="modal-card modal-card-lg">
       <div class="modal-header">
         <div class="modal-header-info">
-          <h3 class="modal-title">⚙️ Atur Pin & Sensor</h3>
-          <span class="modal-subtitle" id="pinManagerDeviceLabel">Perangkat: wemos-relay-01</span>
+          <h3 class="modal-title">⚙️ Atur Modul & Pin Perangkat</h3>
+          <span class="modal-subtitle" id="pinManagerDeviceLabel">Perangkat: node-01</span>
         </div>
         <button type="button" id="btnClosePinManager" class="btn-modal-close" title="Tutup">
           <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
@@ -861,13 +992,12 @@
         </button>
       </div>
 
-      <!-- Tab Navigation di dalam Modal -->
       <div class="pin-modal-tabs">
         <button type="button" class="pin-tab-btn active" data-pin-tab="tabListPins">
-          📋 Komponen Aktif (<span id="countActiveComponents">0</span>)
+          📋 Modul Terpasang (<span id="countActiveComponents">0</span>)
         </button>
         <button type="button" class="pin-tab-btn" data-pin-tab="tabAddPin">
-          ➕ Tambah Pin / Sensor
+          ➕ Tambah Pin / Modul
         </button>
         <button type="button" class="pin-tab-btn" data-pin-tab="tabScanI2c">
           🔍 Auto-Scan I2C
@@ -898,7 +1028,7 @@
                   <option value="12">D6 (GPIO12) - SPI MISO / Digital</option>
                   <option value="13">D7 (GPIO13) - SPI MOSI / Digital</option>
                   <option value="15">D8 (GPIO15) - SPI CS / Digital (Pulldown)</option>
-                  <option value="17">A0 (ADC0) - Input Analog (0-3.3V / 0-1023)</option>
+                  <option value="17">A0 (ADC0) - Input Analog (0-3.3V)</option>
                 </optgroup>
                 <optgroup label="ESP32 (GPIO Standar)">
                   <option value="2">GPIO 2 - Digital / Onboard LED</option>
@@ -922,21 +1052,21 @@
             </div>
 
             <div class="form-group">
-              <label for="pinDriverType">Jenis Sensor / Modul</label>
+              <label for="pinDriverType">Jenis Modul / Driver Native</label>
               <select id="pinDriverType" class="form-select" required>
                 <optgroup label="Aktuator Output">
                   <option value="switch">🔌 Saklar / Relay (Digital Output)</option>
                   <option value="dimmer">💡 Dimmer / PWM (Lampu Redup / Speed Kipas 0-100%)</option>
                 </optgroup>
                 <optgroup label="Sensor Digital & Analog">
-                  <option value="digital_in">🚨 Sensor Gerak / Saklar Pintu (PIR / Digital In)</option>
-                  <option value="analog">📊 Sensor Analog (Kelembapan Tanah, LDR, Potensio)</option>
+                  <option value="digital_in">🚶 Sensor Gerak / Saklar Pintu (PIR / Digital In)</option>
+                  <option value="analog">📈 Sensor Analog (Kelembapan Tanah, LDR, Potensio)</option>
                   <option value="dht11">🌡️ DHT11 (Sensor Suhu & Kelembapan 1-Wire)</option>
                   <option value="dht22">🌡️ DHT22 / AM2302 (Suhu Presisi Tinggi 1-Wire)</option>
                   <option value="ds18b20">🌡️ DS18B20 (Sensor Suhu Tahan Air 1-Wire)</option>
                 </optgroup>
                 <optgroup label="Sensor Bus I2C Native (Zero-Dependency)">
-                  <option value="bmp280">🌡️ BMP280 / BME280 (I2C Suhu & Tekanan Udara)</option>
+                  <option value="bmp280">🌤️ BMP280 / BME280 (I2C Suhu & Tekanan Udara)</option>
                   <option value="bh1750">☀️ BH1750 (I2C Sensor Cahaya Lux)</option>
                   <option value="sht30">🌡️ SHT30 / SHT31 (I2C Suhu & Kelembapan)</option>
                   <option value="aht10">🌡️ AHT10 / AHT20 (I2C Suhu & Kelembapan)</option>
@@ -971,7 +1101,7 @@
 
             <div class="form-actions-right">
               <button type="submit" id="btnSavePinConfig" class="btn-primary-action">
-                💾 Simpan & Terapkan ke Alat
+                💾 Simpan & Terapkan ke Hardware
               </button>
             </div>
           </form>
@@ -984,7 +1114,7 @@
               <div class="i2c-info-icon">🔍</div>
               <div class="i2c-info-text">
                 <h4>Deteksi Otomatis Modul I2C (Plug & Play)</h4>
-                <p>Tancapkan sensor seperti BMP280, BME280, BH1750, atau Layar OLED ke pin I2C (ESP8266: D1=SCL, D2=SDA / ESP32: GPIO22=SCL, GPIO21=SDA). Klik tombol di bawah untuk memindai.</p>
+                <p>Tancapkan sensor seperti BMP280, BME280, BH1750, atau SHT30 ke pin I2C (ESP8266: D1=SCL, D2=SDA / ESP32: GPIO22=SCL, GPIO21=SDA). Klik tombol di bawah untuk memindai.</p>
               </div>
             </div>
 
@@ -1011,8 +1141,74 @@
   </div>
 
   <!-- ==========================================
+       MODAL 3: TELEMETRY GRAPH VIEWER
+  ========================================== -->
+  <div id="modalTelemetryGraph" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title" id="telemetryGraphTitle">Riwayat Telemetri</h3>
+          <span class="modal-subtitle" id="telemetryGraphSub">Grafik pembacaan sensor</span>
+        </div>
+        <button type="button" id="btnCloseGraphModal" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="width: 100%; height: 260px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px; position: relative;">
+          <canvas id="telemetryCanvas" style="width: 100%; height: 100%;"></canvas>
+          <div id="graphLoadingMsg" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-subtle); font-size: 0.85rem;">
+            Memuat data riwayat...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 4: TIMER COUNTDOWN MODAL
+  ========================================== -->
+  <div id="modalTimerCountdown" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title" id="timerModalCompTitle">Atur Timer Hitung Mundur</h3>
+          <span class="modal-subtitle">Nyalakan saklar lalu otomatis padam</span>
+        </div>
+        <button type="button" id="btnCloseTimerModal" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Pilih durasi cepat atau masukkan durasi kustom:</p>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;">
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="60">1 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="300">5 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="600">10 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="900">15 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="1800">30 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="3600">1 Jam</button>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Durasi Kustom (Menit):</label>
+          <input type="number" id="customTimerMinutes" class="form-input" min="1" max="1440" placeholder="Contoh: 45">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btnCancelTimerSubmit" class="btn-modal-cancel">Batal</button>
+        <button type="button" id="btnStartTimerSubmit" class="btn-modal-confirm">Nyalakan dengan Timer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
        UNIVERSAL CUSTOM MODAL & DRAWER DIALOG
-       (Menggantikan window.prompt & window.confirm)
   ========================================== -->
   <div id="customModalBackdrop" class="modal-backdrop hidden">
     <div class="modal-card">
@@ -1039,10 +1235,10 @@
 
   <!-- Toast Notification Banner -->
   <div id="toastNotification" class="toast-banner hidden">
-    <span class="toast-icon">⚡</span>
+    <span class="toast-icon">✓</span>
     <span id="toastMessage">Pesan</span>
   </div>
 
-  <script src="/app.js?v=3.0"></script>
+  <script src="/app.js?v=3.5"></script>
 </body>
 </html>

@@ -20,7 +20,10 @@ Server ini menyediakan komunikasi **WebSocket dua arah real-time**, dashboard we
 - [Arsitektur Sistem](#-arsitektur-sistem)
 - [Panduan Instalasi Cepat](#-panduan-instalasi-cepat-5-menit)
 - [Menjalankan di Mode Produksi (PM2)](#-menjalankan-di-mode-produksi-pm2)
-- [Integrasi dengan Hardware (AgyGatewayClient)](#-integrasi-dengan-hardware-agygatewayclient)
+- [Onboarding Perangkat IoT (Pemula & Mahir)](#-onboarding-perangkat-iot-pemula--mahir)
+  - [Jalur A: Pemula (Tanpa Koding / USB Web Flasher)](#jalur-a-pemula-tanpa-koding--usb-web-flasher)
+  - [Jalur B: Mahir / Developer (C++ AgyGatewayClient)](#jalur-b-mahir--developer-c-agygatewayclient)
+- [Akses Publik Aman via Cloudflare Tunnel](#-akses-publik-aman-via-cloudflare-tunnel)
 - [Spesifikasi Protokol WebSocket](#-spesifikasi-protokol-websocket)
 - [Referensi REST API](#-referensi-rest-api)
 - [Struktur Proyek](#-struktur-proyek)
@@ -33,12 +36,14 @@ Server ini menyediakan komunikasi **WebSocket dua arah real-time**, dashboard we
 
 - ⚡ **Real-Time WebSocket Dua Arah**: Komunikasi latensi ultra-rendah untuk kontrol saklar instan dan transmisi telemetri delta tanpa overhead HTTP berulang.
 - 📱 **Progressive Web App (PWA) Dashboard**: Antarmuka responsif dengan desain dark-mode modern, animasi mikro, dan dapat dipasang (*install*) di homescreen Android, iOS, maupun desktop PC.
+- 🔌 **USB Web Serial Flasher & Serial Monitor (Zero-Toolchain)**: Pengguna pemula dapat menghubungkan kabel USB mikrokontroler (ESP8266/ESP32) langsung ke browser (Chrome/Edge/Opera), melakukan flashing firmware biner `.bin` tanpa perlu menginstal Python, esptool, atau Arduino IDE, serta membaca log output secara interaktif via Serial Monitor web.
+- ☁️ **Cloudflare Tunnel & Reverse Proxy Ready**: Mendukung akses publik aman dari mana saja di seluruh dunia dengan otomatisasi Express `trust proxy` dan deteksi client IP via `CF-Connecting-IP` tanpa perlu port forwarding atau IP publik statis.
 - 🔐 **Handshake Autentikasi & Session Token**: Melindungi *Device Secret Key* dari pemaparan berulang. Setelah registrasi pertama, node mikrokontroler berkomunikasi menggunakan token sesi HMAC (`sess_...`).
 - 🛠️ **Dynamic Pin Management (Zero-Recompile)**: Tambah saklar relay, tombol input, atau sensor baru langsung dari antarmuka Web tanpa perlu memprogram ulang mikrokontroler.
 - 🔍 **Remote I2C Bus Scanner**: Pindai modul sensor I2C (BMP280, BH1750, SHT30, AHT10, dll.) yang terhubung ke ESP dari jarak jauh melalui klik tombol di dashboard.
 - 💡 **Kontrol Dimmer & PWM Slider**: Mendukung pengaturan kecerahan lampu redup, kecepatan kipas exhaust, atau motor DC (0–100%).
 - ⏳ **Independent Countdown Timers**: Perintah kontrol dapat menyertakan timer hitung mundur. Timer dijalankan mandiri di chip ESP agar tetap mematikan beban tepat waktu meskipun jaringan terputus.
-- ⏰ **Advanced Cron Scheduler**: Jadwalkan aksi otomatis berdasarkan waktu (HH:MM) dan hari. Terintegrasi ke SQLite WAL dan file JSON watcher.
+- ⏰ **Universal Cron Scheduler**: Jadwalkan aksi otomatis berdasarkan waktu (HH:MM) dan hari untuk komponen apa pun (saklar, dimmer, atau relay). Terintegrasi ke SQLite WAL dan file JSON watcher.
 - 🚀 **Remote OTA Updates dengan Live Progress**: Unggah file firmware `.bin` ke server dan kirim instruksi update. Dashboard menampilkan persentase unduhan secara live (0–100%).
 - 🎛️ **Virtual Pins Ala Blynk**: Mendukung penulisan dan pembacaan pin virtual (`V1`, `V2`, dst.) untuk otomasi logika kustom.
 - 💾 **SQLite WAL Database**: Penyimpanan berkecepatan tinggi dengan Write-Ahead Logging (WAL) untuk mencatat riwayat telemetri, log perangkat, jadwal, dan kredensial admin.
@@ -93,8 +98,8 @@ npm -v
 
 ### 2. Clone Repository & Pasang Dependensi
 ```bash
-git clone https://github.com/SiMahfud/AgyGatewayServer.git
-cd AgyGatewayServer
+git clone https://github.com/SiMahfud/iot-server.git
+cd iot-server
 npm install
 ```
 
@@ -166,10 +171,51 @@ Agar server IoT berjalan di latar belakang (*background*), otomatis menyala saat
 
 ---
 
-## 🔌 Integrasi dengan Hardware (AgyGatewayClient)
+## 🔌 Onboarding Perangkat IoT (Pemula & Mahir)
 
-Gunakan library [**AgyGatewayClient**](https://github.com/SiMahfud/AgyGatewayClient) di sketch Arduino / PlatformIO mikrokontroler Anda:
+AgyGateway dirancang agar dapat digunakan secara inklusif — baik oleh pengguna awam yang tidak ingin menyentuh baris kode, maupun perekayasa hardware (maker/developer) yang ingin fleksibilitas penuh.
 
+---
+
+### Jalur A: Pemula (Tanpa Koding / USB Web Flasher)
+
+Untuk pengguna pemula, Anda **tidak perlu menginstal Python, Driver esptool, ataupun Arduino IDE**. Cukup gunakan browser web Anda:
+
+1. **Gunakan Browser yang Mendukung**: Buka dashboard di browser berbasis Chromium (Google Chrome, Microsoft Edge, atau Opera versi 89+).
+2. **Colok Perangkat**: Sambungkan mikrokontroler ESP8266 (Wemos D1 Mini, NodeMCU) atau ESP32 ke port USB komputer dengan kabel data.
+3. **Buka Menu Web Flasher**:
+   - Masuk ke tab **Tools** pada dashboard, lalu pilih sub-tab **Web Flasher**.
+   - Klik tombol **Hubungkan USB**, browser akan menampilkan jendela pemilihan port COM serial. Pilih board Anda dan klik *Connect*.
+4. **Flash Firmware**:
+   - Pilih sumber firmware: dari file yang disediakan di server (*Pilih dari Server*) atau unggah file `.bin` Anda sendiri.
+   - Atur flash offset (umumnya `0x00000` untuk ESP8266, atau `0x10000` untuk ESP32 app).
+   - Klik **Flash Firmware**. Bilah progres dan log terminal web akan menampilkan progres penulisan memori flash secara langsung.
+5. **Pantau Koneksi via Serial Monitor Web**:
+   - Beralih ke sub-tab **Serial Monitor**, pilih baud rate (misal `115200`), lalu klik **Hubungkan Serial**.
+   - Anda dapat melihat log boot mikrokontroler, proses koneksi ke WiFi, dan perolehan alamat IP secara langsung di browser.
+6. **Daftarkan di Dashboard**:
+   - Klik tombol **+ Tambah IoT** di bagian atas dashboard, masukkan ID Perangkat (misal `esp32-livingroom`), pilih tipe chip, lalu klik **Daftarkan Perangkat**.
+
+---
+
+### Jalur B: Mahir / Developer (C++ AgyGatewayClient)
+
+Bagi pengembang yang memprogram mikrokontroler sendiri, gunakan library resmi [**AgyGatewayClient**](https://github.com/SiMahfud/AgyGatewayClient):
+
+#### 1. Pasang Dependensi (PlatformIO `platformio.ini`)
+```ini
+[env:esp8266]
+platform = espressif8266
+board = d1_mini
+framework = arduino
+monitor_speed = 115200
+lib_deps =
+    https://github.com/SiMahfud/AgyGatewayClient.git
+    bblanchon/ArduinoJson @ ^6.21.3
+    links2004/WebSockets @ ^2.4.1
+```
+
+#### 2. Contoh Sketch C++ Komprehensif
 ```cpp
 #include <Arduino.h>
 #include <AgyGatewayClient.h>
@@ -179,22 +225,70 @@ AgyGatewayClient iot;
 void setup() {
   Serial.begin(115200);
 
-  // 1. Hardware Watchdog & LED Status
+  // 1. Hardware Watchdog (8 detik) & Status LED
   iot.enableWatchdog(8);
   iot.enableStatusLed(LED_BUILTIN, true);
 
-  // 2. Aktifkan konfigurasi dinamis pin dari Web UI
+  // 2. Aktifkan Dynamic Pin Management (Konfigurasi pin via Dashboard Web)
   iot.enableDynamicPins(true);
 
-  // 3. Hubungkan ke WiFi & Server Gateway
-  // Format: begin(SSID, PASS, IP_SERVER, PORT, WS_PATH, DEVICE_ID, DEVICE_KEY)
+  // 3. Daftarkan Komponen Bawaan (Opsional)
+  // iot.addComponent(id, nama, tipe, pin, access, nilaiAwal)
+  iot.addComponent("lampu_utama", "Lampu Utama", "switch", D1, "rw", "false");
+  iot.addComponent("exhaust_fan", "Exhaust Fan", "dimmer", D2, "rw", "0");
+  iot.addComponent("suhu_kamar",  "Suhu Kamar",  "sensor", -1, "r",  "27.5", "°C");
+
+  // 4. Hubungkan ke Server Gateway
+  // Format: begin(SSID, PASSWORD, HOST/IP, PORT, WS_PATH, DEVICE_ID, DEVICE_SECRET)
+  // Untuk Cloudflare Tunnel / Domain Publik gunakan port 443 dengan WSS:
+  // iot.beginSSL("Nama_WiFi", "Sandi_WiFi", "iot.domainanda.com", 443, "/ws", "node-kamar", "wemos-secret-key-3377");
   iot.begin("Nama_WiFi", "Sandi_WiFi", "192.168.1.100", 3050, "/ws", "node-kamar", "wemos-secret-key-3377");
 }
 
 void loop() {
   iot.loop();
+
+  // Kirim data sensor berkala (otomatis delta-checked oleh library)
+  static unsigned long lastUpdate = 0;
+  if (millis() - lastUpdate > 10000) {
+    lastUpdate = millis();
+    float suhu = 27.5 + (random(-10, 10) / 10.0);
+    iot.updateComponentValue("suhu_kamar", String(suhu, 1));
+  }
 }
 ```
+
+---
+
+## ☁️ Akses Publik Aman via Cloudflare Tunnel
+
+Jika Anda ingin mengontrol perangkat IoT dari luar rumah (jaringan seluler 4G/5G atau internet publik) tanpa menyewa VPS mahal, tanpa IP publik statis, dan tanpa membuka celah keamanan port di router:
+
+1. Unduh dan pasang **cloudflared** di komputer server Anda.
+2. Buat Cloudflare Tunnel:
+   ```bash
+   cloudflared tunnel create iot-server-tunnel
+   ```
+3. Konfigurasikan ingress pada file konfigurasi tunnel (`config.yml`):
+   ```yaml
+   tunnel: <TUNNEL_UUID>
+   credentials-file: /path/to/<TUNNEL_UUID>.json
+
+   ingress:
+     - hostname: iot.domainanda.com
+       service: http://localhost:3050
+     - service: http_status:404
+   ```
+4. Arahkan DNS di dasbor Cloudflare:
+   ```bash
+   cloudflared tunnel route dns iot-server-tunnel iot.domainanda.com
+   ```
+5. Jalankan tunnel:
+   ```bash
+   cloudflared tunnel run iot-server-tunnel
+   ```
+
+Server AgyGateway secara otomatis mendeteksi header `CF-Connecting-IP` dan `X-Forwarded-For` melalui konfigurasi Express `trust proxy`. WebSocket client di dashboard PWA secara cerdas beralih menggunakan koneksi aman `wss://` saat diakses via HTTPS.
 
 ---
 
@@ -290,7 +384,9 @@ Seluruh endpoint di bawah ini memerlukan header `Authorization: Bearer <TOKEN>` 
 | `POST` | `/api/auth/login` | Login admin, mengembalikan JWT session token. |
 | `POST` | `/api/auth/change-password` | Mengubah password admin di SQLite dan config. |
 | `GET` | `/api/devices` | Mendapatkan daftar seluruh perangkat yang terdaftar. |
+| `POST` | `/api/devices` | Mendaftarkan (*pre-register*) perangkat IoT baru ke server. |
 | `DELETE`| `/api/devices/:deviceId` | Menghapus perangkat dari database. |
+| `GET` | `/api/firmwares` | Mendapatkan daftar file firmware `.bin` di direktori server untuk OTA. |
 | `POST` | `/api/devices/:deviceId/components` | Menambahkan komponen GPIO / I2C baru ke hardware. |
 | `DELETE`| `/api/devices/:deviceId/components/:id`| Menghapus komponen dari hardware dan database. |
 | `POST` | `/api/devices/:deviceId/components/:id/control` | Mengontrol nilai komponen (Switch / Dimmer / Timer). |

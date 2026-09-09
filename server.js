@@ -23,6 +23,7 @@ const wss = new WebSocketServer({ server, path: config.server.wsPath || '/ws' })
 const PORT = process.env.PORT || config.server.port || 3050;
 
 // Middleware
+app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -80,7 +81,7 @@ setInterval(() => {
 // WebSocket Handler dengan Autentikasi Ketat
 // -------------------------------------------------------------
 wss.on('connection', (ws, req) => {
-  const clientIp = req.socket.remoteAddress;
+  const clientIp = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress);
   console.log(`[WS] Koneksi baru masuk dari: ${clientIp}`);
 
   let isAuthenticated = false;
@@ -407,6 +408,17 @@ app.get('/api/devices', requireAuth, (req, res) => {
   res.json({ success: true, data: deviceManager.getAll() });
 });
 
+app.post('/api/devices', requireAuth, (req, res) => {
+  const { deviceId, name, type } = req.body;
+  if (!deviceId || !deviceId.trim()) {
+    return res.status(400).json({ success: false, message: 'Device ID wajib diisi' });
+  }
+  const cleanId = deviceId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+  const dev = deviceManager.addDevice({ deviceId: cleanId, name, type });
+  broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: dev });
+  res.json({ success: true, data: dev });
+});
+
 app.post('/api/devices/:deviceId/rename', requireAuth, (req, res) => {
   const { deviceId } = req.params;
   const { name } = req.body;
@@ -434,6 +446,40 @@ app.delete('/api/devices/:deviceId', requireAuth, (req, res) => {
 
   broadcastToBrowsers({ type: 'DEVICE_DELETED', deviceId });
   res.json({ success: true, message: `Device ${deviceId} removed` });
+});
+
+// Picu OTA Firmware Update ke Hardware via WebSocket
+app.post('/api/devices/:deviceId/ota', requireAuth, (req, res) => {
+  const { deviceId } = req.params;
+  const { url, filename } = req.body;
+  const binUrl = url || (filename ? `${req.protocol}://${req.get('host')}/firmwares/${encodeURIComponent(filename)}` : null);
+  if (!binUrl) return res.status(400).json({ success: false, message: 'URL atau nama file firmware wajib diberikan' });
+
+  const result = deviceManager.triggerOTA(deviceId, binUrl);
+  if (!result.success) return res.status(503).json(result);
+  res.json(result);
+});
+
+// Daftar File Firmware Tersedia di Server
+app.get('/api/firmwares', requireAuth, (req, res) => {
+  const fwDir = path.join(__dirname, 'firmwares');
+  if (!fs.existsSync(fwDir)) fs.mkdirSync(fwDir, { recursive: true });
+  try {
+    const files = fs.readdirSync(fwDir)
+      .filter(f => f.endsWith('.bin'))
+      .map(f => {
+        const stat = fs.statSync(path.join(fwDir, f));
+        return {
+          filename: f,
+          size: stat.size,
+          sizeFormatted: (stat.size / 1024).toFixed(1) + ' KB',
+          updatedAt: stat.mtime
+        };
+      });
+    res.json({ success: true, data: files });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // Tambah / Konfigurasi Komponen Pin Baru via Web UI

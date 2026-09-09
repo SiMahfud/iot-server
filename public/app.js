@@ -1,6 +1,8 @@
 // ==========================================
-// Smart Switch IoT Controller - Frontend App v3.0
-// Mobile-First Tab Architecture, Live SQLite/JSON Sync & Custom Modal
+// AgyGateway Hub - Universal IoT Controller App v3.5
+// Pair Frontend for AgyGatewayClient (ESP8266 & ESP32)
+// Supports Polymorphic Components, Zero-Code Dynamic Pins,
+// Remote I2C Scanner, Live OTA, and USB Web Serial Flasher
 // ==========================================
 
 const TOKEN_KEY = 'smart_switch_jwt_token';
@@ -14,6 +16,10 @@ let pingStartTime = 0;
 let appSchedules = [];
 let activityLogs = [];
 let activeLogFilter = 'all';
+let currentCompFilter = 'all';
+
+// Active component for modal actions
+let activeTimerComponentId = null;
 
 // DOM Elements: Auth
 const loginScreen = document.getElementById('loginScreen');
@@ -29,30 +35,37 @@ const btnLogout = document.getElementById('btnLogout');
 const serverStatusBadge = document.getElementById('serverStatusBadge');
 const hardwareStatusBadge = document.getElementById('hardwareStatusBadge');
 const hardwareStatusText = document.getElementById('hardwareStatusText');
-const statActiveRelays = document.getElementById('statActiveRelays');
-const statActiveSchedules = document.getElementById('statActiveSchedules');
+const statActiveDevices = document.getElementById('statActiveDevices') || document.getElementById('statActiveRelays');
+const statActiveActuators = document.getElementById('statActiveActuators');
+const statActiveSensors = document.getElementById('statActiveSensors');
 const wifiRssi = document.getElementById('wifiRssi');
 const pingDisplay = document.getElementById('pingDisplay');
+
+// Device Bar Elements
 const deviceSelect = document.getElementById('deviceSelect');
+const deviceChipBadge = document.getElementById('deviceChipBadge');
 const deviceIdBadge = document.getElementById('deviceIdBadge');
 const deviceName = document.getElementById('deviceName');
 const uptimeDisplay = document.getElementById('uptimeDisplay');
 const btnRenameDevice = document.getElementById('btnRenameDevice');
+const btnOpenAddDevice = document.getElementById('btnOpenAddDevice');
+const btnDeleteDevice = document.getElementById('btnDeleteDevice');
 
-// DOM Elements: Controls & Grid
+// Controls & Master Switch Section
+const masterSwitchSection = document.getElementById('masterSwitchSection');
 const btnAllOn = document.getElementById('btnAllOn');
 const btnAllOff = document.getElementById('btnAllOff');
-const btnSceneWater10 = document.getElementById('btnSceneWater10');
-const btnSceneWater15 = document.getElementById('btnSceneWater15');
-const btnSceneAllOff = document.getElementById('btnSceneAllOff');
+const componentsGrid = document.getElementById('componentsGrid');
 const relaysGrid = document.getElementById('relaysGrid');
 
-// DOM Elements: Schedules & Timer
+// Schedules & Timer Elements
 const subTabJadwalBtn = document.getElementById('subTabJadwalBtn');
 const subTabTimerBtn = document.getElementById('subTabTimerBtn');
 const subViewJadwal = document.getElementById('subViewJadwal');
 const subViewTimer = document.getElementById('subViewTimer');
 const scheduleForm = document.getElementById('scheduleForm');
+const schedDevice = document.getElementById('schedDevice');
+const schedComponent = document.getElementById('schedComponent');
 const schedChannel = document.getElementById('schedChannel');
 const schedAction = document.getElementById('schedAction');
 const schedTime = document.getElementById('schedTime');
@@ -64,18 +77,18 @@ const scheduleList = document.getElementById('scheduleList');
 const schedCountBadge = document.getElementById('schedCountBadge');
 const timerGrid = document.getElementById('timerGrid');
 
-// DOM Elements: Activity Log
+// Activity Log Elements
 const activityTimeline = document.getElementById('activityTimeline');
 const btnRefreshLogs = document.getElementById('btnRefreshLogs');
 
-// DOM Elements: Settings
+// Settings Elements
 const btnSyncJson = document.getElementById('btnSyncJson');
 const btnChangePassword = document.getElementById('btnChangePassword');
 const relayNamingList = document.getElementById('relayNamingList');
 const installAppContainer = document.getElementById('installAppContainer');
 const btnInstallApp = document.getElementById('btnInstallApp');
 
-// DOM Elements: Modal & Toast
+// Universal Custom Modal & Dialog
 const customModalBackdrop = document.getElementById('customModalBackdrop');
 const modalTitle = document.getElementById('modalTitle');
 const modalBody = document.getElementById('modalBody');
@@ -85,54 +98,108 @@ const btnModalConfirm = document.getElementById('btnModalConfirm');
 const toastNotification = document.getElementById('toastNotification');
 const toastMessage = document.getElementById('toastMessage');
 
+// Modal: Add Device Wizard
+const modalAddDevice = document.getElementById('modalAddDevice');
+const btnCloseAddDevice = document.getElementById('btnCloseAddDevice');
+const formRegisterDevice = document.getElementById('formRegisterDevice');
+const btnCopySketch = document.getElementById('btnCopySketch');
+
+// Modal: Telemetry Graph
+const modalTelemetryGraph = document.getElementById('modalTelemetryGraph');
+const btnCloseGraphModal = document.getElementById('btnCloseGraphModal');
+
+// Modal: Timer Countdown
+const modalTimerCountdown = document.getElementById('modalTimerCountdown');
+const btnCloseTimerModal = document.getElementById('btnCloseTimerModal');
+const btnCancelTimerSubmit = document.getElementById('btnCancelTimerSubmit');
+const btnStartTimerSubmit = document.getElementById('btnStartTimerSubmit');
+
+// Modal: Dynamic Pin & I2C Manager
+const modalPinManager = document.getElementById('modalPinManager');
+const btnOpenPinManager = document.getElementById('btnOpenPinManager');
+const btnClosePinManager = document.getElementById('btnClosePinManager');
+const pinTabBtns = document.querySelectorAll('.pin-tab-btn');
+const pinTabContents = document.querySelectorAll('.pin-tab-content');
+const pinManagerDeviceLabel = document.getElementById('pinManagerDeviceLabel');
+const countActiveComponents = document.getElementById('countActiveComponents');
+const activePinsList = document.getElementById('activePinsList');
+const formAddPin = document.getElementById('formAddPin');
+const pinSelect = document.getElementById('pinSelect');
+const pinDriverType = document.getElementById('pinDriverType');
+const pinCompName = document.getElementById('pinCompName');
+const pinCompUnit = document.getElementById('pinCompUnit');
+const pinReadInterval = document.getElementById('pinReadInterval');
+const pinActiveLow = document.getElementById('pinActiveLow');
+const btnTriggerI2cScan = document.getElementById('btnTriggerI2cScan');
+const i2cScanStatus = document.getElementById('i2cScanStatus');
+const i2cResultsContainer = document.getElementById('i2cResultsContainer');
+
+// Tools: Remote OTA
+const subTabOtaBtn = document.getElementById('subTabOtaBtn');
+const subViewOta = document.getElementById('subViewOta');
+const otaTargetDevice = document.getElementById('otaTargetDevice');
+const otaFirmwareSelect = document.getElementById('otaFirmwareSelect');
+const otaCustomUrl = document.getElementById('otaCustomUrl');
+const btnStartOta = document.getElementById('btnStartOta');
+const otaLiveProgressContainer = document.getElementById('otaLiveProgressContainer');
+const otaProgressLabel = document.getElementById('otaProgressLabel');
+const otaProgressPercent = document.getElementById('otaProgressPercent');
+const otaProgressBar = document.getElementById('otaProgressBar');
+const otaByteDetails = document.getElementById('otaByteDetails');
+
 // State: Scheduler Form
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 let selectedDays = [];
 let modalConfirmCallback = null;
 
 // -------------------------------------------------------------
-// Format Waktu & Helper
+// Helper Functions: Formatting & UI Utils
 // -------------------------------------------------------------
 function formatUptime(seconds) {
-  if (!seconds) return '00:00:00';
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return [hrs, mins, secs].map(v => v.toString().padStart(2, '0')).join(':');
+  if (!seconds || isNaN(seconds)) return '00:00:00';
+  const d = Math.floor(seconds / (3600 * 24));
+  const h = Math.floor((seconds % (3600 * 24)) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const pad = n => String(n).padStart(2, '0');
+  if (d > 0) return `${d}h ${pad(h)}:${pad(m)}:${pad(s)}`;
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 function formatCountdown(seconds) {
-  if (!seconds || seconds <= 0) return '00:00';
+  if (seconds <= 0) return '00:00';
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  if (m >= 60) {
-    const h = Math.floor(m / 60);
-    const rm = m % 60;
-    return `${h}j ${rm.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}d`;
-  }
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 function escapeHtml(text) {
   if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function showToast(msg, duration = 3000) {
+  if (!toastNotification || !toastMessage) return;
   toastMessage.textContent = msg;
   toastNotification.classList.remove('hidden');
-  setTimeout(() => {
-    toastNotification.classList.add('hidden');
+  toastNotification.classList.add('show');
+  clearTimeout(toastNotification._timer);
+  toastNotification._timer = setTimeout(() => {
+    toastNotification.classList.remove('show');
+    setTimeout(() => toastNotification.classList.add('hidden'), 300);
   }, duration);
 }
 
 // -------------------------------------------------------------
-// Universal Custom Modal Dialog Engine
-// (Menggantikan window.prompt & window.confirm)
+// Universal Custom Modal System
 // -------------------------------------------------------------
 function openCustomModal({ title, bodyHtml, confirmText = 'Simpan', cancelText = 'Batal', isDanger = false, onConfirm }) {
+  if (!customModalBackdrop) return;
   modalTitle.textContent = title;
   modalBody.innerHTML = bodyHtml;
   btnModalConfirm.textContent = confirmText;
@@ -147,38 +214,47 @@ function openCustomModal({ title, bodyHtml, confirmText = 'Simpan', cancelText =
   modalConfirmCallback = onConfirm;
   customModalBackdrop.classList.remove('hidden');
 
-  // Autofocus input pertama jika ada
   const firstInput = modalBody.querySelector('input');
-  if (firstInput) {
-    setTimeout(() => firstInput.focus(), 150);
-  }
+  if (firstInput) setTimeout(() => firstInput.focus(), 100);
 }
 
 function closeCustomModal() {
-  customModalBackdrop.classList.add('hidden');
-  modalBody.innerHTML = '';
-  modalConfirmCallback = null;
+  if (customModalBackdrop) {
+    customModalBackdrop.classList.add('hidden');
+    modalConfirmCallback = null;
+  }
 }
 
-btnModalClose.addEventListener('click', closeCustomModal);
-btnModalCancel.addEventListener('click', closeCustomModal);
-customModalBackdrop.addEventListener('click', (e) => {
-  if (e.target === customModalBackdrop) closeCustomModal();
-});
-
-btnModalConfirm.addEventListener('click', async () => {
-  if (typeof modalConfirmCallback === 'function') {
-    const shouldClose = await modalConfirmCallback(modalBody);
-    if (shouldClose !== false) {
+if (btnModalClose) btnModalClose.addEventListener('click', closeCustomModal);
+if (btnModalCancel) btnModalCancel.addEventListener('click', closeCustomModal);
+if (btnModalConfirm) {
+  btnModalConfirm.addEventListener('click', async () => {
+    if (typeof modalConfirmCallback === 'function') {
+      const shouldClose = await modalConfirmCallback(modalBody);
+      if (shouldClose !== false) {
+        closeCustomModal();
+      }
+    } else {
       closeCustomModal();
     }
-  } else {
-    closeCustomModal();
-  }
-});
+  });
+}
+
+function showCustomConfirm(title, messageHtml, onConfirmed) {
+  openCustomModal({
+    title: title,
+    bodyHtml: messageHtml,
+    confirmText: 'Ya, Lanjutkan',
+    cancelText: 'Batal',
+    isDanger: true,
+    onConfirm: async () => {
+      if (typeof onConfirmed === 'function') await onConfirmed();
+    }
+  });
+}
 
 // -------------------------------------------------------------
-// Tab Navigation Controller
+// Navigation Tabs & Routing
 // -------------------------------------------------------------
 const navTabBtns = document.querySelectorAll('.nav-tab-btn');
 const tabViews = document.querySelectorAll('.tab-view');
@@ -196,48 +272,50 @@ function switchTab(tabId) {
   });
 
   tabViews.forEach(view => {
-    if (view.id === tabId) {
-      view.classList.remove('hidden');
-    } else {
-      view.classList.add('hidden');
-    }
+    const isActive = view.id === tabId;
+    view.classList.toggle('hidden', !isActive);
+    view.classList.toggle('active', isActive);
   });
 
   if (tabId === 'tabAktivitas') {
     loadActivityLogs();
+  } else if (tabId === 'tabJadwal') {
+    renderScheduleList();
+    renderTimerSection();
   } else if (tabId === 'tabPengaturan') {
     renderRelayNamingList();
   } else if (tabId === 'tabTools') {
-    checkWebSerialSupport();
+    if (typeof checkWebSerialSupport === 'function') checkWebSerialSupport();
   }
 }
 
-// Sub-tab switcher in Jadwal Tab
-if (subTabJadwalBtn && subTabTimerBtn) {
-  subTabJadwalBtn.addEventListener('click', () => {
-    subTabJadwalBtn.classList.add('active');
-    subTabTimerBtn.classList.remove('active');
-    subViewJadwal.classList.remove('hidden');
-    subViewTimer.classList.add('hidden');
-  });
-
-  subTabTimerBtn.addEventListener('click', () => {
-    subTabTimerBtn.classList.add('active');
-    subTabJadwalBtn.classList.remove('active');
-    subViewTimer.classList.remove('hidden');
-    subViewJadwal.classList.add('hidden');
-  });
+// -------------------------------------------------------------
+// REST API Helper
+// -------------------------------------------------------------
+async function apiRequest(url, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401 || res.status === 403) {
+    logout();
+    throw new Error('Sesi autentikasi kedaluwarsa');
+  }
+  return res.json();
 }
 
 // -------------------------------------------------------------
-// Sesi & Autentikasi
+// Authentication Flow
 // -------------------------------------------------------------
 async function checkAuthSession() {
   if (!authToken) {
     showLoginUI();
     return;
   }
-
   try {
     const res = await fetch('/api/auth/check', {
       headers: { 'Authorization': `Bearer ${authToken}` }
@@ -253,14 +331,12 @@ async function checkAuthSession() {
   } catch (err) {
     showDashboardUI();
     connectWebSocket();
-    loadSchedules();
   }
 }
 
 function showLoginUI() {
   loginScreen.classList.remove('hidden');
   dashboardApp.classList.add('hidden');
-  if (socket) socket.close();
 }
 
 function showDashboardUI() {
@@ -269,65 +345,60 @@ function showDashboardUI() {
 }
 
 function logout() {
-  localStorage.removeItem(TOKEN_KEY);
   authToken = null;
-  if (socket) socket.close();
+  localStorage.removeItem(TOKEN_KEY);
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
   showLoginUI();
+  showToast('Anda telah keluar');
 }
 
-// Submit Login Form
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginErrorMsg.classList.add('hidden');
+if (btnLogout) btnLogout.addEventListener('click', logout);
 
-  const username = loginUser.value.trim();
-  const password = loginPass.value;
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginErrorMsg.classList.add('hidden');
 
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
+    const u = loginUser.value.trim();
+    const p = loginPass.value;
 
-    const data = await res.json();
-    if (data.success && data.token) {
-      authToken = data.token;
-      localStorage.setItem(TOKEN_KEY, authToken);
-      showDashboardUI();
-      connectWebSocket();
-      loadSchedules();
-      showToast(`Selamat datang, ${data.username}!`);
-    } else {
-      loginErrorMsg.textContent = data.message || 'Username atau password salah!';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const data = await res.json();
+
+      if (data.success && data.token) {
+        authToken = data.token;
+        localStorage.setItem(TOKEN_KEY, authToken);
+        showToast('Login berhasil!');
+        showDashboardUI();
+        connectWebSocket();
+        loadSchedules();
+      } else {
+        loginErrorMsg.textContent = data.message || 'Login gagal';
+        loginErrorMsg.classList.remove('hidden');
+      }
+    } catch (err) {
+      loginErrorMsg.textContent = 'Gagal menghubungi server';
       loginErrorMsg.classList.remove('hidden');
     }
-  } catch (err) {
-    loginErrorMsg.textContent = 'Gagal menghubungi server!';
-    loginErrorMsg.classList.remove('hidden');
-  }
-});
-
-btnTogglePass.addEventListener('click', () => {
-  const isPass = loginPass.type === 'password';
-  loginPass.type = isPass ? 'text' : 'password';
-});
-
-btnLogout.addEventListener('click', () => {
-  openCustomModal({
-    title: 'Konfirmasi Keluar',
-    bodyHtml: '<p style="font-size: 0.9rem; color: var(--text-muted);">Apakah Anda yakin ingin keluar dari dashboard Smart Switch?</p>',
-    confirmText: 'Keluar',
-    isDanger: true,
-    onConfirm: () => {
-      logout();
-      showToast('Anda telah keluar');
-    }
   });
-});
+}
+
+if (btnTogglePass) {
+  btnTogglePass.addEventListener('click', () => {
+    loginPass.type = loginPass.type === 'password' ? 'text' : 'password';
+  });
+}
 
 // -------------------------------------------------------------
-// WebSocket Client
+// Real-Time WebSocket Connection (WSS / WS Adaptive)
 // -------------------------------------------------------------
 function connectWebSocket() {
   if (!authToken) return;
@@ -342,6 +413,7 @@ function connectWebSocket() {
     serverStatusBadge.className = 'status-pill online';
     serverStatusBadge.innerHTML = '<span class="status-dot"></span><span class="status-text">Server</span>';
     measurePing();
+    loadServerFirmwaresForOta();
   };
 
   socket.onmessage = (event) => {
@@ -355,25 +427,27 @@ function connectWebSocket() {
         }
         updateDeviceDropdown();
         renderDashboard();
-        renderTimerSection();
         renderScheduleList();
         updateQuickStats();
-      } else if (msg.type === 'DEVICE_UPDATE') {
+      } else if (msg.type === 'DEVICE_UPDATE' || msg.type === 'DEVICE_CREATED') {
         appDevices[msg.device.deviceId] = msg.device;
         updateDeviceDropdown();
         if (msg.device.deviceId === activeDeviceId) {
           renderDashboard();
-          renderTimerSection();
         }
         renderScheduleList();
         updateQuickStats();
       } else if (msg.type === 'DEVICE_DELETED') {
         delete appDevices[msg.deviceId];
+        const remaining = Object.keys(appDevices);
+        if (activeDeviceId === msg.deviceId) {
+          activeDeviceId = remaining.length > 0 ? remaining[0] : null;
+        }
         updateDeviceDropdown();
         renderDashboard();
-        renderTimerSection();
         renderScheduleList();
         updateQuickStats();
+        showToast(`Perangkat ${msg.deviceId} dihapus`);
       } else if (msg.type === 'SCHEDULES_UPDATE') {
         appSchedules = msg.schedules || [];
         renderScheduleList();
@@ -391,7 +465,7 @@ function connectWebSocket() {
         logout();
       } else if (msg.type === 'PONG') {
         const latency = Date.now() - pingStartTime;
-        pingDisplay.textContent = `${Math.min(latency, 999)} ms`;
+        if (pingDisplay) pingDisplay.textContent = `${Math.min(latency, 999)} ms`;
       }
     } catch (err) {
       console.error('[WS PARSE ERROR]', err);
@@ -404,7 +478,7 @@ function connectWebSocket() {
       return;
     }
     serverStatusBadge.className = 'status-pill offline';
-    serverStatusBadge.innerHTML = '<span class="status-dot"></span><span class="status-text">Reconnecting...</span>';
+    serverStatusBadge.innerHTML = '<span class="status-dot"></span><span class="status-text">Offline</span>';
     hardwareStatusBadge.className = 'status-pill offline';
     hardwareStatusText.textContent = 'Hardware';
     setTimeout(() => {
@@ -423,763 +497,1153 @@ function measurePing() {
     socket.send(JSON.stringify({ action: 'ping' }));
   }
 }
-setInterval(measurePing, 10000);
+setInterval(measurePing, 15000);
 
 // -------------------------------------------------------------
-// Quick Stats Engine
+// Quick Stats Banner Updater
 // -------------------------------------------------------------
 function updateQuickStats() {
-  const dev = appDevices[activeDeviceId];
-  let activeRelays = 0;
-  let totalRelays = 4;
-
-  if (dev && Array.isArray(dev.relays)) {
-    totalRelays = dev.relays.length;
-    activeRelays = dev.relays.filter(r => r.state).length;
+  const devicesList = Object.values(appDevices);
+  const totalDevs = devicesList.length;
+  const onlineDevs = devicesList.filter(d => d.isOnline).length;
+  if (statActiveDevices) {
+    statActiveDevices.textContent = `${onlineDevs}/${totalDevs} Online`;
   }
 
-  statActiveRelays.textContent = `${activeRelays}/${totalRelays}`;
+  const dev = appDevices[activeDeviceId];
+  let activeActuators = 0;
+  let activeSensors = 0;
 
-  // Jadwal aktif untuk device ini
-  const activeScheds = appSchedules.filter(s => s.deviceId === activeDeviceId && s.enabled !== false).length;
-  statActiveSchedules.textContent = activeScheds.toString();
-  schedCountBadge.textContent = activeScheds.toString();
+  if (dev) {
+    const comps = Array.isArray(dev.components) ? dev.components : [];
+    comps.forEach(c => {
+      if (c.type === 'switch' && (c.value === 'true' || c.value === true || c.value === '1')) {
+        activeActuators++;
+      } else if (c.type === 'dimmer' && parseInt(c.value) > 0) {
+        activeActuators++;
+      } else if (c.type === 'sensor' || c.driver === 'analog' || c.driver === 'bmp280' || c.driver === 'bh1750' || c.driver?.startsWith('dht') || c.driver === 'ds18b20' || c.driver === 'sht30' || c.driver === 'aht10') {
+        activeSensors++;
+      }
+    });
 
-  // Hardware status badge & WiFi
+    if (activeActuators === 0 && Array.isArray(dev.relays)) {
+      activeActuators = dev.relays.filter(r => r.state).length;
+    }
+  }
+
+  if (statActiveActuators) statActiveActuators.textContent = `${activeActuators} Aktif`;
+  if (statActiveSensors) statActiveSensors.textContent = `${activeSensors} Sensor`;
+
+  if (dev) {
+    if (deviceChipBadge) deviceChipBadge.textContent = dev.chip || (dev.type?.includes('32') ? 'ESP32' : 'ESP8266');
+    if (deviceIdBadge) deviceIdBadge.textContent = dev.deviceId;
+    if (deviceName) deviceName.textContent = dev.name || dev.deviceId;
+  }
+
   if (dev && dev.isOnline) {
     hardwareStatusBadge.className = 'status-pill online';
     hardwareStatusText.textContent = 'Hardware';
-    wifiRssi.textContent = dev.rssi ? `${dev.rssi} dBm` : '-- dBm';
-    uptimeDisplay.textContent = formatUptime(dev.uptime);
+    if (wifiRssi) wifiRssi.textContent = dev.rssi ? `${dev.rssi} dBm` : '-- dBm';
+    if (uptimeDisplay) uptimeDisplay.textContent = formatUptime(dev.uptime);
   } else {
     hardwareStatusBadge.className = 'status-pill offline';
     hardwareStatusText.textContent = 'Hardware';
-    wifiRssi.textContent = '-- dBm';
-    uptimeDisplay.textContent = '00:00:00';
+    if (wifiRssi) wifiRssi.textContent = '-- dBm';
+    if (!dev && uptimeDisplay) uptimeDisplay.textContent = '00:00:00';
   }
 }
 
 // -------------------------------------------------------------
-// Update Device Dropdown & Relay Selectors
+// Device Dropdown & Selection
 // -------------------------------------------------------------
 function updateDeviceDropdown() {
   const ids = Object.keys(appDevices);
-  
+
   if (ids.length === 0) {
-    deviceSelect.innerHTML = '<option value="">Tidak ada perangkat</option>';
+    if (deviceSelect) deviceSelect.innerHTML = '<option value="">Belum ada perangkat</option>';
     activeDeviceId = null;
-    renderScheduleList();
     updateQuickStats();
     return;
   }
 
-  const prevActive = activeDeviceId;
   if (!activeDeviceId || !appDevices[activeDeviceId]) {
     activeDeviceId = ids[0];
   }
 
-  deviceSelect.innerHTML = '';
-  ids.forEach(id => {
-    const dev = appDevices[id];
-    const opt = document.createElement('option');
-    opt.value = id;
-    const statusIcon = dev.isOnline ? '🟢' : '⚪';
-    opt.textContent = `${statusIcon} ${dev.name || id}`;
-    if (id === activeDeviceId) opt.selected = true;
-    deviceSelect.appendChild(opt);
-  });
-
-  updateScheduleRelayOptions();
-
-  if (prevActive !== activeDeviceId) {
-    renderScheduleList();
+  if (deviceSelect) {
+    deviceSelect.innerHTML = '';
+    ids.forEach(id => {
+      const dev = appDevices[id];
+      const opt = document.createElement('option');
+      opt.value = id;
+      const statusIcon = dev.isOnline ? '🟢' : '⚪';
+      opt.textContent = `${statusIcon} ${dev.name || id}`;
+      if (id === activeDeviceId) opt.selected = true;
+      deviceSelect.appendChild(opt);
+    });
   }
+
+  // Also update schedule target devices & OTA target devices
+  populateScheduleDevices();
+  populateOtaDevices();
   updateQuickStats();
 }
 
-deviceSelect.addEventListener('change', (e) => {
-  activeDeviceId = e.target.value;
-  updateScheduleRelayOptions();
-  renderDashboard();
-  renderTimerSection();
-  renderScheduleList();
-  updateQuickStats();
+if (deviceSelect) {
+  deviceSelect.addEventListener('change', (e) => {
+    activeDeviceId = e.target.value;
+    renderDashboard();
+    renderScheduleList();
+    renderTimerSection();
+    updateQuickStats();
+    populateScheduleComponents();
+  });
+}
+
+// -------------------------------------------------------------
+// Device Lifecycle: Add & Delete Devices
+// -------------------------------------------------------------
+function openAddDeviceModal() {
+  if (modalAddDevice) {
+    modalAddDevice.classList.remove('hidden');
+    const wizHostDisplay = document.getElementById('wizHostDisplay');
+    if (wizHostDisplay) {
+      wizHostDisplay.textContent = window.location.hostname;
+    }
+  }
+}
+
+function closeAddDeviceModal() {
+  if (modalAddDevice) modalAddDevice.classList.add('hidden');
+}
+
+if (btnOpenAddDevice) btnOpenAddDevice.addEventListener('click', openAddDeviceModal);
+if (btnCloseAddDevice) btnCloseAddDevice.addEventListener('click', closeAddDeviceModal);
+
+// Wizard Tab Switcher in Add Device Modal
+const wizardTabBtns = document.querySelectorAll('.wizard-tab-btn');
+wizardTabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    wizardTabBtns.forEach(b => b.classList.toggle('active', b === btn));
+    const target = btn.dataset.wizardTab;
+    const wizPemula = document.getElementById('wizPemula');
+    const wizMahir = document.getElementById('wizMahir');
+    if (wizPemula) wizPemula.classList.toggle('hidden', target !== 'wizPemula');
+    if (wizMahir) wizMahir.classList.toggle('hidden', target !== 'wizMahir');
+  });
 });
 
-// Update pilihan relay di form jadwal mengikuti nama kustom
-function updateScheduleRelayOptions(targetSelect = schedChannel) {
-  if (!targetSelect) return;
-  const dev = appDevices[activeDeviceId];
-  targetSelect.innerHTML = '';
+if (btnCopySketch) {
+  btnCopySketch.addEventListener('click', () => {
+    const code = document.getElementById('sketchSnippetCode');
+    if (code) {
+      navigator.clipboard.writeText(code.innerText).then(() => {
+        showToast('Sketch C++ berhasil disalin ke clipboard!');
+      });
+    }
+  });
+}
 
-  const relayCount = (dev && Array.isArray(dev.relays)) ? dev.relays.length : 4;
-  for (let i = 1; i <= relayCount; i++) {
-    const opt = document.createElement('option');
-    opt.value = i;
-    const r = dev && dev.relays ? dev.relays.find(x => x.channel === i) : null;
-    const relayName = r ? r.name : `Saklar ${i}`;
-    opt.textContent = `Relay #${i} - ${relayName}`;
-    targetSelect.appendChild(opt);
-  }
+if (formRegisterDevice) {
+  formRegisterDevice.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const idInput = document.getElementById('newDeviceId');
+    const nameInput = document.getElementById('newDeviceName');
+    const id = idInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    const name = nameInput.value.trim() || `Perangkat (${id})`;
+
+    try {
+      const res = await apiRequest('/api/devices', {
+        method: 'POST',
+        body: JSON.stringify({ deviceId: id, name })
+      });
+      if (res && res.success) {
+        showToast(`Node ${id} berhasil didaftarkan!`);
+        appDevices[id] = res.data;
+        activeDeviceId = id;
+        idInput.value = '';
+        nameInput.value = '';
+        closeAddDeviceModal();
+        updateDeviceDropdown();
+        renderDashboard();
+      } else {
+        showToast(res ? res.message : 'Gagal mendaftarkan node', 'error');
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
+}
+
+if (btnDeleteDevice) {
+  btnDeleteDevice.addEventListener('click', () => {
+    if (!activeDeviceId) return;
+    const dev = appDevices[activeDeviceId];
+    const devName = dev ? (dev.name || dev.deviceId) : activeDeviceId;
+
+    showCustomConfirm(
+      'Hapus Perangkat IoT?',
+      `<p>Apakah Anda yakin ingin menghapus <strong>${escapeHtml(devName)}</strong> (ID: <code>${activeDeviceId}</code>)?</p><p style="font-size:0.8rem; color:var(--danger-glow); margin-top:8px;">Semua data komponen, riwayat telemetri, dan jadwal perangkat ini akan dihapus dari database.</p>`,
+      async () => {
+        try {
+          const res = await apiRequest(`/api/devices/${activeDeviceId}`, { method: 'DELETE' });
+          if (res && res.success) {
+            showToast(`Perangkat ${activeDeviceId} berhasil dihapus`);
+            delete appDevices[activeDeviceId];
+            const remaining = Object.keys(appDevices);
+            activeDeviceId = remaining.length > 0 ? remaining[0] : null;
+            updateDeviceDropdown();
+            renderDashboard();
+          } else {
+            showToast(res ? res.message : 'Gagal menghapus perangkat', 'error');
+          }
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+    );
+  });
+}
+
+if (btnRenameDevice) {
+  btnRenameDevice.addEventListener('click', () => {
+    if (!activeDeviceId || !appDevices[activeDeviceId]) return;
+    const curName = appDevices[activeDeviceId].name || activeDeviceId;
+
+    openCustomModal({
+      title: 'Ubah Nama Perangkat',
+      bodyHtml: `
+        <div class="form-group">
+          <label class="form-label">Nama Perangkat Baru</label>
+          <input type="text" id="inputNewDeviceName" class="form-input" value="${escapeHtml(curName)}" maxlength="30" required>
+        </div>
+      `,
+      confirmText: 'Simpan',
+      onConfirm: async (body) => {
+        const val = body.querySelector('#inputNewDeviceName').value.trim();
+        if (!val) return false;
+        try {
+          const res = await apiRequest(`/api/devices/${activeDeviceId}/rename`, {
+            method: 'POST',
+            body: JSON.stringify({ name: val })
+          });
+          if (res && res.success) {
+            appDevices[activeDeviceId].name = val;
+            updateDeviceDropdown();
+            renderDashboard();
+            showToast('Nama perangkat berhasil diperbarui');
+          }
+        } catch (e) {
+          showToast('Gagal mengubah nama perangkat');
+        }
+      }
+    });
+  });
 }
 
 // -------------------------------------------------------------
-// Render Dashboard Kontrol
+// TAB 1: KONTROL UNIVERSAL (Polymorphic Grid)
 // -------------------------------------------------------------
+// Component Filter Pills
+const compFilterPills = document.querySelectorAll('.comp-filter-pill');
+compFilterPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    compFilterPills.forEach(p => p.classList.toggle('active', p === pill));
+    currentCompFilter = pill.dataset.compFilter || 'all';
+    renderDashboard();
+  });
+});
+
 function renderDashboard() {
   const dev = appDevices[activeDeviceId];
 
   if (!dev) {
-    deviceName.textContent = 'Tidak Ada Perangkat';
-    deviceIdBadge.textContent = '--';
-    relaysGrid.innerHTML = '<p style="text-align:center; color: var(--text-subtle); padding: 30px 0; grid-column: 1 / -1;">Belum ada perangkat IoT yang terhubung.</p>';
-    updateQuickStats();
-    return;
-  }
-
-  deviceName.textContent = dev.name || dev.deviceId;
-  deviceIdBadge.textContent = dev.deviceId;
-  uptimeDisplay.textContent = formatUptime(dev.uptime);
-
-  relaysGrid.innerHTML = '';
-  if (!dev.relays || dev.relays.length === 0) {
-    relaysGrid.innerHTML = '<p style="text-align:center; color: var(--text-subtle); padding: 30px 0; grid-column: 1 / -1;">Menunggu sinkronisasi channel relay...</p>';
-    updateQuickStats();
-    return;
-  }
-
-  dev.relays.forEach(relay => {
-    const card = document.createElement('div');
-    card.className = `relay-card ${relay.state ? 'active' : ''}`;
-    card.id = `relay-card-${relay.channel}`;
-
-    let countdownBadgeHtml = '';
-    if (relay.timer && relay.timer.active && relay.timer.remaining > 0) {
-      countdownBadgeHtml = `
-        <div class="countdown-badge">
-          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          <span>⏱ ${formatCountdown(relay.timer.remaining)}</span>
+    if (deviceName) deviceName.textContent = 'Tidak Ada Perangkat';
+    if (deviceIdBadge) deviceIdBadge.textContent = '--';
+    if (deviceChipBadge) deviceChipBadge.textContent = 'ESP';
+    if (componentsGrid) {
+      componentsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 36px 20px; text-align: center; color: var(--text-subtle); background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 16px;">
+          <div style="font-size: 2.2rem; margin-bottom: 8px;">📡</div>
+          <h4 style="color: var(--text-main); margin-bottom: 6px;">Belum Ada Perangkat IoT Terdaftar</h4>
+          <p style="font-size: 0.82rem; margin-bottom: 16px;">Tambahkan node baru sekarang menggunakan Web Flasher USB atau Captive Portal WiFi.</p>
+          <button type="button" class="btn-primary-action" onclick="openAddDeviceModal()" style="display: inline-flex;">
+            + Tambah IoT Baru Sekarang
+          </button>
         </div>
       `;
     }
+    if (masterSwitchSection) masterSwitchSection.classList.add('hidden');
+    updateQuickStats();
+    return;
+  }
 
-    card.innerHTML = `
-      <div class="relay-meta">
-        <div class="relay-header-line">
-          <span class="channel-pill">RELAY #${relay.channel}</span>
-          <span class="relay-status-label">${relay.state ? 'MENYALA' : 'MATI'}</span>
-        </div>
-        <div class="relay-name-wrapper" title="Klik untuk ubah nama">
-          <span class="relay-name-text">${escapeHtml(relay.name)}</span>
-          <button class="btn-rename" type="button" title="Ubah Nama">
-            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
-              <path d="M12 20h9"></path>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-            </svg>
-          </button>
-        </div>
-        ${countdownBadgeHtml}
-      </div>
-      <label class="switch-control">
-        <input type="checkbox" ${relay.state ? 'checked' : ''} data-channel="${relay.channel}">
-        <span class="slider"></span>
-      </label>
-    `;
+  if (deviceName) deviceName.textContent = dev.name || dev.deviceId;
+  if (deviceIdBadge) deviceIdBadge.textContent = dev.deviceId;
+  if (deviceChipBadge) deviceChipBadge.textContent = dev.chip || (dev.type?.includes('32') ? 'ESP32' : 'ESP8266');
+  if (uptimeDisplay) uptimeDisplay.textContent = formatUptime(dev.uptime);
 
-    const checkbox = card.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener('change', (e) => {
-      triggerRelay(relay.channel, e.target.checked);
-    });
-
-    const nameWrapper = card.querySelector('.relay-name-wrapper');
-    nameWrapper.addEventListener('click', () => {
-      promptRenameRelayModal(dev.deviceId, relay.channel, relay.name);
-    });
-
-    relaysGrid.appendChild(card);
-  });
-
-  renderComponentsSection(dev);
+  renderUnifiedComponents(dev);
   updateQuickStats();
 }
 
+function renderUnifiedComponents(dev) {
+  if (!componentsGrid) return;
+  componentsGrid.innerHTML = '';
+
+  let comps = Array.isArray(dev.components) ? [...dev.components] : [];
+
+  // Sinkronkan relay lama jika ada dan belum tercatat di components
+  if (Array.isArray(dev.relays) && dev.relays.length > 0) {
+    dev.relays.forEach(r => {
+      const exists = comps.some(c => c.id === `relay_${r.channel}`);
+      if (!exists) {
+        comps.push({
+          id: `relay_${r.channel}`,
+          name: r.name || `Saklar ${r.channel}`,
+          type: 'switch',
+          driver: 'switch',
+          value: r.state ? 'true' : 'false',
+          pin: r.channel === 1 ? 5 : (r.channel === 2 ? 4 : (r.channel === 3 ? 14 : 12)),
+          access: 'rw'
+        });
+      }
+    });
+  }
+
+  // Master switch section visibility
+  const hasSwitches = comps.some(c => c.type === 'switch');
+  if (masterSwitchSection) {
+    masterSwitchSection.classList.toggle('hidden', !hasSwitches);
+  }
+
+  // Filter components
+  if (currentCompFilter === 'actuator') {
+    comps = comps.filter(c => c.type === 'switch' || c.type === 'dimmer');
+  } else if (currentCompFilter === 'sensor') {
+    comps = comps.filter(c => c.type === 'sensor' || c.driver === 'analog' || c.driver === 'bmp280' || c.driver === 'bh1750' || c.driver?.startsWith('dht') || c.driver === 'ds18b20' || c.driver === 'sht30' || c.driver === 'aht10');
+  } else if (currentCompFilter === 'indicator') {
+    comps = comps.filter(c => c.type === 'indicator' || c.driver === 'digital_in');
+  }
+
+  if (comps.length === 0) {
+    componentsGrid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 32px 20px; text-align: center; color: var(--text-subtle); background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 16px;">
+        <div style="font-size: 2rem; margin-bottom: 8px;">🔌</div>
+        <h4 style="color: var(--text-main); margin-bottom: 6px;">Belum Ada Modul Terpasang</h4>
+        <p style="font-size: 0.82rem; margin-bottom: 16px;">Tancapkan sensor atau relay ke GPIO mikrokontroler, lalu atur pin secara instan dari browser tanpa flash ulang.</p>
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+          <button type="button" class="btn-manage-pins" onclick="openPinManager('tabAddPin')">
+            ➕ Tambah Pin / Modul
+          </button>
+          <button type="button" class="btn-manage-pins" onclick="openPinManager('tabScanI2c')">
+            🔍 Auto-Scan Jalur I2C
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Sort components
+  comps.sort((a, b) => {
+    const order = { 'switch': 1, 'dimmer': 2, 'sensor': 3, 'indicator': 4, 'virtual': 5 };
+    const orderA = order[a.type] || 9;
+    const orderB = order[b.type] || 9;
+    return orderA - orderB;
+  });
+
+  comps.forEach(c => {
+    const card = createComponentCard(c, dev);
+    componentsGrid.appendChild(card);
+  });
+}
+
+function createComponentCard(c, dev) {
+  const card = document.createElement('div');
+  card.className = 'component-widget-card';
+  card.id = `comp-widget-${c.id}`;
+
+  const driver = c.driver || c.type || '';
+  let icon = '🔌';
+  if (driver === 'switch') icon = '💡';
+  else if (driver === 'dimmer' || c.type === 'dimmer') icon = '🔆';
+  else if (driver === 'digital_in' || driver === 'indicator') icon = '🚶';
+  else if (driver.startsWith('dht') || driver === 'ds18b20' || driver === 'sht30' || driver === 'aht10') icon = '🌡️';
+  else if (driver === 'bmp280') icon = '🌤️';
+  else if (driver === 'bh1750') icon = '☀️';
+  else if (driver === 'analog') icon = '📊';
+
+  let pinTag = (c.pin >= 0) ? `Pin ${c.pin}` : 'I2C/Virtual';
+  if (c.pin === 17) pinTag = 'A0 (ADC)';
+  else if (c.pin === 14) pinTag = 'D5 (GPIO14)';
+  else if (c.pin === 12) pinTag = 'D6 (GPIO12)';
+  else if (c.pin === 13) pinTag = 'D7 (GPIO13)';
+  else if (c.pin === 4) pinTag = 'D2 (SDA)';
+  else if (c.pin === 5) pinTag = 'D1 (SCL)';
+
+  if (c.type === 'switch') {
+    const isOn = c.value === 'true' || c.value === true || c.value === '1';
+    if (isOn) card.classList.add('active');
+    card.innerHTML = `
+      <div class="comp-header">
+        <div class="comp-meta">
+          <span class="comp-icon">${icon}</span>
+          <div class="comp-title-wrap">
+            <span class="comp-title">${escapeHtml(c.name || c.id)}</span>
+            <span class="comp-pin-tag">${pinTag}</span>
+          </div>
+        </div>
+        <div class="card-actions-group">
+          <button type="button" class="btn-card-timer" title="Atur Timer Hitung Mundur">
+            ⏱ Timer
+          </button>
+          <button type="button" class="btn-card-action btn-rename-comp" title="Ubah Nama">✏️</button>
+          <button type="button" class="btn-card-action danger btn-del-comp" title="Hapus Modul">🗑️</button>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin: 12px 0;">
+        <span style="font-size: 0.9rem; font-weight: 700; color: ${isOn ? 'var(--primary-glow)' : 'var(--text-muted)'};">
+          ${isOn ? 'MENYALA' : 'MATI'}
+        </span>
+        <label class="switch-control">
+          <input type="checkbox" ${isOn ? 'checked' : ''} data-comp-id="${c.id}">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="comp-footer">
+        <span>Kontrol Digital Output</span>
+        <span style="font-family: monospace;">${isOn ? 'ACTIVE' : 'STANDBY'}</span>
+      </div>
+    `;
+
+    const chk = card.querySelector('input[type="checkbox"]');
+    chk.addEventListener('change', (e) => {
+      triggerComponent(c.id, e.target.checked);
+    });
+
+    const btnTimer = card.querySelector('.btn-card-timer');
+    btnTimer.addEventListener('click', () => {
+      openTimerModal(c.id, c.name);
+    });
+
+    const btnRename = card.querySelector('.btn-rename-comp');
+    btnRename.addEventListener('click', () => {
+      promptRenameComponent(c.id, c.name);
+    });
+
+    const btnDel = card.querySelector('.btn-del-comp');
+    btnDel.addEventListener('click', () => {
+      confirmDeleteComponent(c.id, c.name);
+    });
+
+  } else if (c.type === 'dimmer' || driver === 'dimmer') {
+    const dimVal = Math.min(Math.max(parseInt(c.value) || 0, 0), 100);
+    card.innerHTML = `
+      <div class="comp-header">
+        <div class="comp-meta">
+          <span class="comp-icon">${icon}</span>
+          <div class="comp-title-wrap">
+            <span class="comp-title">${escapeHtml(c.name || c.id)}</span>
+            <span class="comp-pin-tag">${pinTag}</span>
+          </div>
+        </div>
+        <div class="card-actions-group">
+          <button type="button" class="btn-card-action btn-rename-comp" title="Ubah Nama">✏️</button>
+          <button type="button" class="btn-card-action danger btn-del-comp" title="Hapus Modul">🗑️</button>
+        </div>
+      </div>
+      <div style="margin: 10px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 0.78rem; color: var(--text-muted);">Nilai PWM Slider:</span>
+          <span id="dim-text-${c.id}" style="font-size: 1rem; font-weight: 800; color: var(--accent-blue);">${dimVal}%</span>
+        </div>
+        <input type="range" class="dimmer-range-slider" min="0" max="100" value="${dimVal}" style="width: 100%; cursor: pointer; accent-color: var(--accent-blue);">
+        <div class="dimmer-presets">
+          <button type="button" class="btn-dimmer-preset" data-preset="0">0%</button>
+          <button type="button" class="btn-dimmer-preset" data-preset="25">25%</button>
+          <button type="button" class="btn-dimmer-preset" data-preset="50">50%</button>
+          <button type="button" class="btn-dimmer-preset" data-preset="100">100%</button>
+        </div>
+      </div>
+      <div class="comp-footer">
+        <span>Dimmer / PWM (0-100%)</span>
+        <span style="font-family: monospace;">Scale 8/10-bit</span>
+      </div>
+    `;
+
+    const slider = card.querySelector('.dimmer-range-slider');
+    const label = card.querySelector(`#dim-text-${c.id}`);
+    slider.addEventListener('input', (e) => {
+      label.textContent = `${e.target.value}%`;
+    });
+    slider.addEventListener('change', (e) => {
+      triggerComponent(c.id, parseInt(e.target.value));
+    });
+
+    const presetBtns = card.querySelectorAll('.btn-dimmer-preset');
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = parseInt(btn.dataset.preset);
+        slider.value = val;
+        label.textContent = `${val}%`;
+        triggerComponent(c.id, val);
+      });
+    });
+
+    const btnRename = card.querySelector('.btn-rename-comp');
+    btnRename.addEventListener('click', () => {
+      promptRenameComponent(c.id, c.name);
+    });
+
+    const btnDel = card.querySelector('.btn-del-comp');
+    btnDel.addEventListener('click', () => {
+      confirmDeleteComponent(c.id, c.name);
+    });
+
+  } else if (c.type === 'indicator' || driver === 'digital_in') {
+    const isActive = c.value === '1' || c.value === 'true';
+    card.innerHTML = `
+      <div class="comp-header">
+        <div class="comp-meta">
+          <span class="comp-icon">${icon}</span>
+          <div class="comp-title-wrap">
+            <span class="comp-title">${escapeHtml(c.name || c.id)}</span>
+            <span class="comp-pin-tag">${pinTag}</span>
+          </div>
+        </div>
+        <div class="card-actions-group">
+          <button type="button" class="btn-card-action btn-rename-comp" title="Ubah Nama">✏️</button>
+          <button type="button" class="btn-card-action danger btn-del-comp" title="Hapus Modul">🗑️</button>
+        </div>
+      </div>
+      <div style="margin: 12px 0;">
+        <span class="indicator-pill ${isActive ? 'active' : 'inactive'}">
+          ${isActive ? '🔴 Terdeteksi / Aktif' : '🟢 Standby / Aman'}
+        </span>
+      </div>
+      <div class="comp-footer">
+        <span>Digital Input (Debounce 50ms)</span>
+        <span style="font-family: monospace;">${isActive ? 'TRIGGERED' : 'IDLE'}</span>
+      </div>
+    `;
+
+    const btnRename = card.querySelector('.btn-rename-comp');
+    btnRename.addEventListener('click', () => {
+      promptRenameComponent(c.id, c.name);
+    });
+
+    const btnDel = card.querySelector('.btn-del-comp');
+    btnDel.addEventListener('click', () => {
+      confirmDeleteComponent(c.id, c.name);
+    });
+
+  } else {
+    // Sensor metric card
+    card.innerHTML = `
+      <div class="comp-header">
+        <div class="comp-meta">
+          <span class="comp-icon">${icon}</span>
+          <div class="comp-title-wrap">
+            <span class="comp-title">${escapeHtml(c.name || c.id)}</span>
+            <span class="comp-pin-tag">${pinTag}</span>
+          </div>
+        </div>
+        <div class="card-actions-group">
+          <button type="button" class="btn-card-graph" title="Lihat Grafik Riwayat">
+            📈 Grafik
+          </button>
+          <button type="button" class="btn-card-action btn-rename-comp" title="Ubah Nama">✏️</button>
+          <button type="button" class="btn-card-action danger btn-del-comp" title="Hapus Modul">🗑️</button>
+        </div>
+      </div>
+      <div class="comp-val-display" style="margin: 10px 0;">
+        <span class="comp-val-number">${escapeHtml(c.value || '0')}</span>
+        <span class="comp-val-unit">${escapeHtml(c.unit || '')}</span>
+      </div>
+      <div class="comp-footer">
+        <span>Driver: ${escapeHtml(driver || 'sensor')}</span>
+        <span style="font-size: 0.68rem; color: var(--text-subtle);">Real-Time Delta</span>
+      </div>
+    `;
+
+    const btnGraph = card.querySelector('.btn-card-graph');
+    btnGraph.addEventListener('click', () => {
+      openTelemetryGraphModal(c.id, c.name, c.unit);
+    });
+
+    const btnRename = card.querySelector('.btn-rename-comp');
+    btnRename.addEventListener('click', () => {
+      promptRenameComponent(c.id, c.name);
+    });
+
+    const btnDel = card.querySelector('.btn-del-comp');
+    btnDel.addEventListener('click', () => {
+      confirmDeleteComponent(c.id, c.name);
+    });
+  }
+
+  return card;
+}
+
 // -------------------------------------------------------------
-// Perintah Kontrol Relay
+// Component Actions & Control Triggers
 // -------------------------------------------------------------
-function triggerRelay(channel, state, duration = 0) {
-  if (navigator.vibrate) navigator.vibrate(40);
+function triggerComponent(componentId, value, duration = 0) {
+  if (!activeDeviceId) return;
 
   if (socket && socket.readyState === WebSocket.OPEN) {
-    const payload = {
-      action: 'set_relay',
+    const msg = {
+      action: 'set_component',
       target: activeDeviceId,
-      channel: channel,
-      state: state
+      componentId: componentId,
+      value: value
     };
-    if (duration > 0) payload.duration = duration;
-    socket.send(JSON.stringify(payload));
+    if (duration > 0) msg.duration = duration;
+    socket.send(JSON.stringify(msg));
+
+    // Optimistic UI update
+    const dev = appDevices[activeDeviceId];
+    if (dev && Array.isArray(dev.components)) {
+      const c = dev.components.find(x => x.id === componentId);
+      if (c) c.value = String(value);
+    }
+    if (/^relay_\d+$/i.test(componentId) && dev && Array.isArray(dev.relays)) {
+      const ch = parseInt(componentId.replace(/\D/g, ''));
+      const r = dev.relays.find(x => x.channel === ch);
+      if (r) r.state = (value === true || value === 'true' || value === '1');
+    }
+    updateQuickStats();
   } else {
-    showToast('Gagal: Server terputus');
+    showToast('Koneksi WebSocket terputus', 'error');
   }
 }
 
-function triggerAllRelays(state) {
-  if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+function triggerAllSwitches(state) {
+  if (!activeDeviceId) return;
+  const dev = appDevices[activeDeviceId];
+  if (!dev) return;
 
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    const payload = {
-      action: 'set_all',
-      target: activeDeviceId,
-      state: state
-    };
-    socket.send(JSON.stringify(payload));
-  } else {
-    showToast('Gagal: Server terputus');
+  const comps = Array.isArray(dev.components) ? dev.components : [];
+  const switches = comps.filter(c => c.type === 'switch');
+  if (switches.length > 0) {
+    switches.forEach(s => {
+      triggerComponent(s.id, state);
+    });
+  } else if (Array.isArray(dev.relays) && dev.relays.length > 0) {
+    dev.relays.forEach(r => {
+      triggerComponent(`relay_${r.channel}`, state);
+    });
   }
+  showToast(`Semua saklar di-${state ? 'nyalakan' : 'matikan'}`);
 }
 
-btnAllOn.addEventListener('click', () => triggerAllRelays(true));
-btnAllOff.addEventListener('click', () => triggerAllRelays(false));
+if (btnAllOn) btnAllOn.addEventListener('click', () => triggerAllSwitches(true));
+if (btnAllOff) btnAllOff.addEventListener('click', () => triggerAllSwitches(false));
 
-// Quick Scenes Handler
-btnSceneWater10.addEventListener('click', () => {
-  triggerRelay(1, true, 600);
-  showToast('🚿 Siram 10 Menit dimulai pada Relay #1');
-});
-
-btnSceneWater15.addEventListener('click', () => {
-  triggerRelay(1, true, 900);
-  showToast('💧 Siram 15 Menit dimulai pada Relay #1');
-});
-
-btnSceneAllOff.addEventListener('click', () => {
-  triggerAllRelays(false);
-  showToast('🛑 Semua relay dimatikan (Standby)');
-});
-
-// -------------------------------------------------------------
-// Modal Dialogs: Rename Perangkat & Relay
-// -------------------------------------------------------------
-btnRenameDevice.addEventListener('click', () => {
-  if (!activeDeviceId || !appDevices[activeDeviceId]) return;
-  const curName = appDevices[activeDeviceId].name || activeDeviceId;
-
+// Prompt Rename Component
+function promptRenameComponent(componentId, currentName) {
   openCustomModal({
-    title: 'Ubah Nama Perangkat',
+    title: 'Ubah Nama Modul',
     bodyHtml: `
       <div class="form-group">
-        <label class="form-label">Nama Perangkat Baru</label>
-        <input type="text" id="inputNewDeviceName" class="form-input" value="${escapeHtml(curName)}" maxlength="30" required>
+        <label class="form-label">Nama Komponen Baru</label>
+        <input type="text" id="inputNewCompName" class="form-input" value="${escapeHtml(currentName || componentId)}" maxlength="30" required>
       </div>
     `,
     confirmText: 'Simpan',
     onConfirm: async (body) => {
-      const val = body.querySelector('#inputNewDeviceName').value.trim();
-      if (!val || val === curName) return true;
+      const newName = body.querySelector('#inputNewCompName').value.trim();
+      if (!newName) return false;
 
       try {
-        const res = await fetch(`/api/devices/${activeDeviceId}/rename`, {
+        const res = await apiRequest(`/api/devices/${activeDeviceId}/components/${componentId}/rename`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ name: val })
+          body: JSON.stringify({ name: newName })
         });
-        const data = await res.json();
-        if (data.success) {
-          showToast('Nama perangkat berhasil diperbarui');
+        if (res && res.success) {
+          showToast('Nama komponen berhasil diperbarui');
+          const dev = appDevices[activeDeviceId];
+          if (dev && Array.isArray(dev.components)) {
+            const c = dev.components.find(x => x.id === componentId);
+            if (c) c.name = newName;
+          }
+          renderDashboard();
+          populateScheduleComponents();
         }
-      } catch (e) {
-        showToast('Gagal mengubah nama perangkat');
-      }
-    }
-  });
-});
-
-function promptRenameRelayModal(deviceId, channel, currentName) {
-  openCustomModal({
-    title: `Ubah Nama Relay #${channel}`,
-    bodyHtml: `
-      <div class="form-group">
-        <label class="form-label">Nama Saklar</label>
-        <input type="text" id="inputNewRelayName" class="form-input" value="${escapeHtml(currentName)}" maxlength="30" required>
-      </div>
-    `,
-    confirmText: 'Simpan',
-    onConfirm: async (body) => {
-      const val = body.querySelector('#inputNewRelayName').value.trim();
-      if (!val || val === currentName) return true;
-
-      try {
-        const res = await fetch(`/api/devices/${deviceId}/relay/${channel}/rename`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ name: val })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(`Relay #${channel} diubah menjadi: "${val}"`);
-          updateScheduleRelayOptions();
-          renderRelayNamingList();
-        }
-      } catch (e) {
-        showToast('Gagal mengubah nama relay');
+      } catch (err) {
+        showToast('Gagal mengubah nama modul', 'error');
       }
     }
   });
 }
 
-// -------------------------------------------------------------
-// Modal Dialog: Ubah Password Admin
-// -------------------------------------------------------------
-btnChangePassword.addEventListener('click', () => {
-  openCustomModal({
-    title: 'Ubah Password Administrator',
-    bodyHtml: `
-      <div class="form-group">
-        <label class="form-label">Password Saat Ini</label>
-        <input type="password" id="inputCurPass" class="form-input" placeholder="Masukkan password lama" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password Baru (min 6 karakter)</label>
-        <input type="password" id="inputNewPass" class="form-input" placeholder="Password baru" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Konfirmasi Password Baru</label>
-        <input type="password" id="inputConfirmPass" class="form-input" placeholder="Ketik ulang password baru" required>
-      </div>
-      <div id="passErrorNotice" class="error-msg hidden"></div>
-    `,
-    confirmText: 'Ubah Password',
-    onConfirm: async (body) => {
-      const curPass = body.querySelector('#inputCurPass').value;
-      const newPass = body.querySelector('#inputNewPass').value;
-      const confPass = body.querySelector('#inputConfirmPass').value;
-      const errNotice = body.querySelector('#passErrorNotice');
-
-      if (!curPass) {
-        errNotice.textContent = 'Password saat ini wajib diisi';
-        errNotice.classList.remove('hidden');
-        return false;
-      }
-      if (!newPass || newPass.length < 6) {
-        errNotice.textContent = 'Password baru minimal 6 karakter';
-        errNotice.classList.remove('hidden');
-        return false;
-      }
-      if (newPass !== confPass) {
-        errNotice.textContent = 'Konfirmasi password baru tidak cocok';
-        errNotice.classList.remove('hidden');
-        return false;
-      }
-
+// Confirm Delete Component
+function confirmDeleteComponent(componentId, componentName) {
+  showCustomConfirm(
+    'Hapus Modul / Pin?',
+    `<p>Apakah Anda yakin ingin melepas modul <strong>${escapeHtml(componentName || componentId)}</strong> dari perangkat ini?</p><p style="font-size:0.8rem; color:var(--text-subtle); margin-top:6px;">Instruksi <code>remove_pin</code> akan dikirimkan ke hardware secara otomatis.</p>`,
+    async () => {
       try {
-        const res = await fetch('/api/auth/change-password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify({ currentPassword: curPass, newPassword: newPass })
+        const res = await apiRequest(`/api/devices/${activeDeviceId}/components/${componentId}`, {
+          method: 'DELETE'
         });
-        const data = await res.json();
-        if (data.success) {
-          showToast('Password berhasil diubah! Silakan login ulang.');
-          logout();
-          return true;
+        if (res && res.success) {
+          showToast(`Modul ${componentId} berhasil dilepas`);
+          const dev = appDevices[activeDeviceId];
+          if (dev && Array.isArray(dev.components)) {
+            dev.components = dev.components.filter(x => x.id !== componentId);
+          }
+          renderDashboard();
+          populateScheduleComponents();
         } else {
-          errNotice.textContent = data.message || 'Gagal mengubah password';
-          errNotice.classList.remove('hidden');
-          return false;
+          showToast(res ? res.message : 'Gagal melepas modul', 'error');
         }
-      } catch (e) {
-        errNotice.textContent = 'Terjadi kesalahan koneksi server';
-        errNotice.classList.remove('hidden');
-        return false;
+      } catch (err) {
+        showToast(err.message, 'error');
       }
+    }
+  );
+}
+
+// -------------------------------------------------------------
+// Timer Countdown Modal Logic
+// -------------------------------------------------------------
+function openTimerModal(componentId, componentName) {
+  activeTimerComponentId = componentId;
+  const title = document.getElementById('timerModalCompTitle');
+  if (title) title.textContent = `Timer: ${componentName || componentId}`;
+  if (modalTimerCountdown) modalTimerCountdown.classList.remove('hidden');
+}
+
+function closeTimerModal() {
+  if (modalTimerCountdown) modalTimerCountdown.classList.add('hidden');
+  activeTimerComponentId = null;
+}
+
+if (btnCloseTimerModal) btnCloseTimerModal.addEventListener('click', closeTimerModal);
+if (btnCancelTimerSubmit) btnCancelTimerSubmit.addEventListener('click', closeTimerModal);
+
+const timerPresetBtns = document.querySelectorAll('.btn-dimmer-preset[data-timer-sec]');
+timerPresetBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sec = parseInt(btn.dataset.timerSec);
+    if (activeTimerComponentId && sec > 0) {
+      triggerComponent(activeTimerComponentId, true, sec);
+      showToast(`⏱️ Timer ${formatCountdown(sec)} diaktifkan pada hardware`);
+      closeTimerModal();
     }
   });
 });
 
+if (btnStartTimerSubmit) {
+  btnStartTimerSubmit.addEventListener('click', () => {
+    const customMinutesInput = document.getElementById('customTimerMinutes');
+    const mins = customMinutesInput ? parseInt(customMinutesInput.value) : 0;
+    if (activeTimerComponentId && mins > 0) {
+      const sec = mins * 60;
+      triggerComponent(activeTimerComponentId, true, sec);
+      showToast(`⏱️ Timer ${mins} menit diaktifkan pada hardware`);
+      closeTimerModal();
+    } else {
+      showToast('Masukkan durasi menit yang valid', 'warning');
+    }
+  });
+}
+
 // -------------------------------------------------------------
-// Timer Countdown Section
+// Telemetry History Graph Viewer Modal
 // -------------------------------------------------------------
-const TIMER_PRESETS = [
-  { label: '1 menit', value: 60 },
-  { label: '5 menit', value: 300 },
-  { label: '10 menit', value: 600 },
-  { label: '15 menit', value: 900 },
-  { label: '30 menit', value: 1800 },
-  { label: '1 jam', value: 3600 },
-];
+async function openTelemetryGraphModal(compId, compName, compUnit) {
+  if (!modalTelemetryGraph || !activeDeviceId) return;
+  modalTelemetryGraph.classList.remove('hidden');
+
+  const title = document.getElementById('telemetryGraphTitle');
+  const sub = document.getElementById('telemetryGraphSub');
+  const loading = document.getElementById('graphLoadingMsg');
+  const canvas = document.getElementById('telemetryCanvas');
+
+  if (title) title.textContent = `Riwayat: ${compName || compId}`;
+  if (sub) sub.textContent = `Perangkat: ${activeDeviceId} • Satuan: ${compUnit || '-'}`;
+  if (loading) {
+    loading.textContent = 'Memuat data riwayat...';
+    loading.classList.remove('hidden');
+  }
+
+  try {
+    const res = await apiRequest(`/api/devices/${activeDeviceId}/components/${compId}/history?limit=50`);
+    if (loading) loading.classList.add('hidden');
+
+    if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      drawTelemetryChart(canvas, res.data, compUnit);
+    } else {
+      if (loading) {
+        loading.textContent = 'Belum ada data telemetri tercatat untuk sensor ini.';
+        loading.classList.remove('hidden');
+      }
+    }
+  } catch (err) {
+    if (loading) {
+      loading.textContent = 'Gagal memuat grafik: ' + err.message;
+      loading.classList.remove('hidden');
+    }
+  }
+}
+
+if (btnCloseGraphModal) {
+  btnCloseGraphModal.addEventListener('click', () => {
+    if (modalTelemetryGraph) modalTelemetryGraph.classList.add('hidden');
+  });
+}
+
+function drawTelemetryChart(canvas, data, unit) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const padding = { top: 20, right: 20, bottom: 30, left: 45 };
+  const graphW = w - padding.left - padding.right;
+  const graphH = h - padding.top - padding.bottom;
+
+  const values = data.map(d => parseFloat(d.value)).filter(v => !isNaN(v));
+  if (values.length === 0) return;
+
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
+  const valRange = (maxVal - minVal) === 0 ? 1 : (maxVal - minVal);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padding.top + (graphH / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(w - padding.right, y);
+    ctx.stroke();
+
+    const valLabel = (maxVal - (valRange / 4) * i).toFixed(1);
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(valLabel, padding.left - 6, y + 3);
+  }
+
+  // Step calculations
+  const stepX = graphW / (data.length - 1 || 1);
+  const points = data.map((d, i) => {
+    const x = padding.left + i * stepX;
+    const v = parseFloat(d.value);
+    const y = padding.top + graphH - ((v - minVal) / valRange) * graphH;
+    return { x, y, val: v };
+  });
+
+  // Area gradient
+  const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + graphH);
+  grad.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+  grad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, padding.top + graphH);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.lineTo(points[points.length - 1].x, padding.top + graphH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line chart
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Points
+  points.forEach((p, idx) => {
+    if (data.length <= 25 || idx % 2 === 0) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#10b981';
+      ctx.fill();
+      ctx.strokeStyle = '#080b11';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  });
+}
+
+// -------------------------------------------------------------
+// TAB 2: JADWAL OTOMATIS & COUNTDOWN TIMER
+// -------------------------------------------------------------
+if (subTabJadwalBtn && subTabTimerBtn) {
+  subTabJadwalBtn.addEventListener('click', () => {
+    subTabJadwalBtn.classList.add('active');
+    subTabTimerBtn.classList.remove('active');
+    if (subViewJadwal) subViewJadwal.classList.remove('hidden');
+    if (subViewTimer) subViewTimer.classList.add('hidden');
+  });
+
+  subTabTimerBtn.addEventListener('click', () => {
+    subTabTimerBtn.classList.add('active');
+    subTabJadwalBtn.classList.remove('active');
+    if (subViewTimer) subViewTimer.classList.remove('hidden');
+    if (subViewJadwal) subViewJadwal.classList.add('hidden');
+    renderTimerSection();
+  });
+}
 
 function renderTimerSection() {
+  if (!timerGrid) return;
   const dev = appDevices[activeDeviceId];
-  if (!dev || !dev.relays || dev.relays.length === 0) {
+  if (!dev) {
     timerGrid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--text-subtle);">Tidak ada perangkat aktif</p>';
     return;
   }
 
+  const comps = Array.isArray(dev.components) ? dev.components : [];
+  const switches = comps.filter(c => c.type === 'switch');
+
+  if (switches.length === 0) {
+    timerGrid.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; color: var(--text-subtle); padding: 20px 0;">Tidak ada saklar pada perangkat ini untuk timer hitung mundur.</p>';
+    return;
+  }
+
   timerGrid.innerHTML = '';
-
-  dev.relays.forEach(relay => {
+  switches.forEach(s => {
     const card = document.createElement('div');
-    const hasTimer = relay.timer && relay.timer.active && relay.timer.remaining > 0;
-    card.className = `timer-card ${hasTimer ? 'has-timer' : ''}`;
-    const relayName = escapeHtml(relay.name || `Saklar ${relay.channel}`);
+    card.className = 'timer-card';
+    card.innerHTML = `
+      <div class="timer-card-header">
+        <span class="timer-relay-name">${escapeHtml(s.name || s.id)}</span>
+        <span class="timer-state-badge ${(s.value === 'true' || s.value === true) ? 'on' : 'off'}">
+          ${(s.value === 'true' || s.value === true) ? 'MENYALA' : 'MATI'}
+        </span>
+      </div>
+      <div class="timer-actions-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0;">
+        <button type="button" class="btn-timer-quick" data-comp="${s.id}" data-sec="60">1m</button>
+        <button type="button" class="btn-timer-quick" data-comp="${s.id}" data-sec="300">5m</button>
+        <button type="button" class="btn-timer-quick" data-comp="${s.id}" data-sec="600">10m</button>
+        <button type="button" class="btn-timer-quick" data-comp="${s.id}" data-sec="900">15m</button>
+        <button type="button" class="btn-timer-quick" data-comp="${s.id}" data-sec="1800">30m</button>
+        <button type="button" class="btn-timer-quick" data-comp="${s.id}" data-sec="3600">1h</button>
+      </div>
+    `;
 
-    if (hasTimer) {
-      const remaining = relay.timer.remaining;
-      const total = relay.timer.total || remaining;
-      const progressPct = total > 0 ? Math.max(0, (remaining / total) * 100) : 0;
-
-      card.innerHTML = `
-        <div class="timer-card-header">
-          <span class="timer-relay-name">${relayName}</span>
-          <span class="timer-relay-channel">#${relay.channel}</span>
-        </div>
-        <div class="timer-countdown-display">
-          <div class="countdown-time">${formatCountdown(remaining)}</div>
-          <div class="countdown-label">sisa waktu mundur</div>
-        </div>
-        <div class="timer-progress-bar">
-          <div class="timer-progress-fill" style="width: ${progressPct}%"></div>
-        </div>
-        <button class="btn-timer-cancel" type="button" data-channel="${relay.channel}">
-          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-          </svg>
-          <span>Batalkan Timer</span>
-        </button>
-      `;
-
-      card.querySelector('.btn-timer-cancel').addEventListener('click', () => {
-        cancelTimer(relay.channel);
+    card.querySelectorAll('.btn-timer-quick').forEach(b => {
+      b.addEventListener('click', () => {
+        const sec = parseInt(b.dataset.sec);
+        triggerComponent(s.id, true, sec);
+        showToast(`⏱️ Timer ${formatCountdown(sec)} diaktifkan untuk ${s.name || s.id}`);
       });
-    } else {
-      let optionsHtml = TIMER_PRESETS.map(p => `<option value="${p.value}">${p.label}</option>`).join('');
-      optionsHtml += '<option value="custom">Custom...</option>';
-
-      card.innerHTML = `
-        <div class="timer-card-header">
-          <span class="timer-relay-name">${relayName}</span>
-          <span class="timer-relay-channel">#${relay.channel}</span>
-        </div>
-        <p style="font-size: 0.76rem; color: var(--text-muted);">${relay.state ? '🟢 Menyala' : '⚪ Mati'}</p>
-        <div class="timer-actions">
-          <select data-channel="${relay.channel}">${optionsHtml}</select>
-          <button class="btn-timer-start" type="button" data-channel="${relay.channel}">
-            <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            <span>Mulai</span>
-          </button>
-        </div>
-      `;
-
-      const startBtn = card.querySelector('.btn-timer-start');
-      const selectEl = card.querySelector('select');
-      startBtn.addEventListener('click', () => {
-        if (selectEl.value === 'custom') {
-          openCustomModal({
-            title: `Durasi Custom (Relay #${relay.channel})`,
-            bodyHtml: `
-              <div class="form-group">
-                <label class="form-label">Masukkan Durasi (dalam Menit)</label>
-                <input type="number" id="inputCustomMin" class="form-input" min="1" max="1440" value="10" required>
-              </div>
-            `,
-            confirmText: 'Mulai Timer',
-            onConfirm: (body) => {
-              const mins = parseInt(body.querySelector('#inputCustomMin').value);
-              if (isNaN(mins) || mins <= 0) return false;
-              startTimer(relay.channel, mins * 60);
-              return true;
-            }
-          });
-        } else {
-          startTimer(relay.channel, parseInt(selectEl.value));
-        }
-      });
-    }
+    });
 
     timerGrid.appendChild(card);
   });
 }
 
-function startTimer(channel, durationSeconds) {
-  if (navigator.vibrate) navigator.vibrate(40);
+function populateScheduleDevices() {
+  if (!schedDevice) return;
+  schedDevice.innerHTML = '';
+  const devs = Object.values(appDevices);
+  if (devs.length === 0) {
+    schedDevice.innerHTML = '<option value="">Tidak ada perangkat</option>';
+    return;
+  }
+  devs.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = `${d.name || d.deviceId} (${d.isOnline ? 'Online' : 'Offline'})`;
+    if (d.deviceId === activeDeviceId) opt.selected = true;
+    schedDevice.appendChild(opt);
+  });
+  populateScheduleComponents();
+}
 
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      action: 'set_relay',
-      target: activeDeviceId,
-      channel: channel,
-      state: true,
-      duration: durationSeconds
-    }));
-    showToast(`Timer ${formatCountdown(durationSeconds)} dimulai pada Relay #${channel}`);
+function populateScheduleComponents() {
+  if (!schedComponent || !schedDevice) return;
+  schedComponent.innerHTML = '';
+  const devId = schedDevice.value || activeDeviceId;
+  const dev = appDevices[devId];
+  if (!dev) {
+    schedComponent.innerHTML = '<option value="">Pilih perangkat terlebih dahulu</option>';
+    return;
+  }
+
+  const comps = Array.isArray(dev.components) ? dev.components : [];
+  const controllable = comps.filter(c => c.access === 'rw' || c.type === 'switch' || c.type === 'dimmer');
+
+  if (controllable.length > 0) {
+    controllable.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.name || c.id} (${c.type.toUpperCase()})`;
+      schedComponent.appendChild(opt);
+    });
+  } else if (Array.isArray(dev.relays) && dev.relays.length > 0) {
+    dev.relays.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = `relay_${r.channel}`;
+      opt.textContent = `${r.name || `Saklar #${r.channel}`}`;
+      schedComponent.appendChild(opt);
+    });
   } else {
-    showToast('Gagal: Server terputus');
+    schedComponent.innerHTML = '<option value="">Tidak ada komponen aktuator</option>';
   }
 }
 
-function cancelTimer(channel) {
-  if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
-
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      action: 'cancel_timer',
-      target: activeDeviceId,
-      channel: channel
-    }));
-    showToast(`Timer Relay #${channel} dibatalkan`);
-  } else {
-    showToast('Gagal: Server terputus');
-  }
+if (schedDevice) {
+  schedDevice.addEventListener('change', populateScheduleComponents);
 }
 
-// -------------------------------------------------------------
-// Scheduler Harian / Mingguan & Next Run Engine
-// -------------------------------------------------------------
+// Day Chips Selector
 if (daysChips) {
-  daysChips.querySelectorAll('.day-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const day = parseInt(chip.dataset.day);
+  daysChips.querySelectorAll('.day-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      const day = parseInt(c.dataset.day);
       if (selectedDays.includes(day)) {
         selectedDays = selectedDays.filter(d => d !== day);
-        chip.classList.remove('selected');
+        c.classList.remove('selected');
       } else {
         selectedDays.push(day);
-        chip.classList.add('selected');
+        c.classList.add('selected');
       }
     });
   });
 }
 
-async function loadSchedules() {
-  try {
-    const res = await fetch('/api/schedules', {
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    });
-    const data = await res.json();
-    if (data.success) {
-      appSchedules = data.data || [];
-      renderScheduleList();
-      updateQuickStats();
-    }
-  } catch (e) {
-    console.warn('[SCHED]', e);
-  }
-}
-
-if (schedAction && schedDurationGroup) {
-  schedAction.addEventListener('change', () => {
-    if (schedAction.value === 'off') {
-      schedDurationGroup.style.display = 'none';
-      if (schedDuration) schedDuration.value = '';
-    } else {
-      schedDurationGroup.style.display = '';
-    }
-  });
-}
-
-// Tambah Jadwal Baru
+// Schedule Form Submit
 if (scheduleForm) {
   scheduleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    if (!activeDeviceId) {
-      showToast('Pilih perangkat terlebih dahulu');
+    const targetDev = schedDevice ? schedDevice.value : activeDeviceId;
+    if (!targetDev) {
+      showToast('Pilih perangkat terlebih dahulu', 'warning');
       return;
     }
 
     const timeVal = schedTime.value;
     if (!timeVal) {
-      showToast('Masukkan waktu jam jadwal');
+      showToast('Masukkan jam eksekusi jadwal', 'warning');
       return;
     }
 
+    const targetComp = schedComponent ? schedComponent.value : (schedChannel ? `relay_${schedChannel.value}` : null);
     const durationVal = (schedDuration && schedDuration.value) ? parseInt(schedDuration.value) : 0;
 
     const payload = {
-      deviceId: activeDeviceId,
-      channel: parseInt(schedChannel.value),
+      deviceId: targetDev,
+      componentId: targetComp,
+      channel: (targetComp && /^relay_\d+$/i.test(targetComp)) ? parseInt(targetComp.replace(/\D/g, '')) : 0,
       action: schedAction.value,
       time: timeVal,
       days: [...selectedDays].sort(),
       duration: durationVal,
-      label: schedLabel.value.trim() || `Jadwal Relay #${schedChannel.value}`
+      label: schedLabel.value.trim() || (targetComp ? `Jadwal ${targetComp}` : 'Jadwal Otomatis')
     };
 
     try {
-      const res = await fetch('/api/schedules', {
+      const res = await apiRequest('/api/schedules', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`Jadwal "${payload.label}" berhasil disimpan`);
-        schedLabel.value = '';
-        if (schedDuration) schedDuration.value = '';
+      if (res && res.success) {
+        showToast('Jadwal berhasil disimpan!');
+        scheduleForm.reset();
         selectedDays = [];
-        daysChips.querySelectorAll('.day-chip').forEach(c => c.classList.remove('selected'));
+        if (daysChips) daysChips.querySelectorAll('.day-chip').forEach(c => c.classList.remove('selected'));
         loadSchedules();
       } else {
-        showToast(data.message || 'Gagal menambah jadwal');
+        showToast(res ? res.message : 'Gagal menyimpan jadwal', 'error');
       }
     } catch (err) {
-      showToast('Gagal menghubungi server');
+      showToast(err.message, 'error');
     }
   });
 }
 
-// Hitung Estimasi Next Run
-function calculateNextRunText(timeStr, daysArr) {
-  const [targetH, targetM] = timeStr.split(':').map(Number);
-  const now = new Date();
-  
-  for (let offset = 0; offset <= 7; offset++) {
-    const candidate = new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
-    candidate.setHours(targetH, targetM, 0, 0);
-
-    const dayOfWeek = candidate.getDay();
-    const matchesDay = (!daysArr || daysArr.length === 0 || daysArr.includes(dayOfWeek));
-
-    if (matchesDay && candidate > now) {
-      const diffMs = candidate.getTime() - now.getTime();
-      const diffMin = Math.round(diffMs / 60000);
-      
-      let relativeTxt = '';
-      if (diffMin < 60) {
-        relativeTxt = `${diffMin} menit lagi`;
-      } else {
-        const hrs = Math.floor(diffMin / 60);
-        const remMin = diffMin % 60;
-        relativeTxt = remMin > 0 ? `${hrs} jam ${remMin}m lagi` : `${hrs} jam lagi`;
-      }
-
-      const dayLabel = offset === 0 ? 'Hari ini' : (offset === 1 ? 'Besok' : DAY_NAMES[dayOfWeek]);
-      return `⏰ ${dayLabel}, ${timeStr} (${relativeTxt})`;
+async function loadSchedules() {
+  try {
+    const res = await apiRequest('/api/schedules');
+    if (res && res.success) {
+      appSchedules = res.data || [];
+      renderScheduleList();
+      updateQuickStats();
     }
-  }
-  return '';
+  } catch (err) {}
 }
 
-// Render Daftar Jadwal
 function renderScheduleList() {
   if (!scheduleList) return;
 
-  let deviceSchedules = activeDeviceId
-    ? appSchedules.filter(s => s.deviceId === activeDeviceId)
-    : appSchedules;
+  const list = activeDeviceId ? appSchedules.filter(s => s.deviceId === activeDeviceId) : appSchedules;
+  if (schedCountBadge) schedCountBadge.textContent = list.length;
 
-  if (deviceSchedules.length === 0 && appSchedules.length > 0) {
-    const uniqueDeviceIds = [...new Set(appSchedules.map(s => s.deviceId))];
-    if (uniqueDeviceIds.length === 1) {
-      activeDeviceId = uniqueDeviceIds[0];
-      deviceSchedules = appSchedules;
-    }
-  }
-
-  if (deviceSchedules.length === 0) {
-    scheduleList.innerHTML = '<p class="empty-schedule-msg">Belum ada jadwal untuk perangkat ini.</p>';
-    schedCountBadge.textContent = '0';
+  if (list.length === 0) {
+    scheduleList.innerHTML = '<p class="empty-schedule-msg">Belum ada jadwal aktif untuk perangkat ini.</p>';
     return;
   }
 
-  schedCountBadge.textContent = deviceSchedules.filter(s => s.enabled).length.toString();
   scheduleList.innerHTML = '';
-  deviceSchedules.sort((a, b) => a.time.localeCompare(b.time));
-
-  const dev = appDevices[activeDeviceId];
-
-  deviceSchedules.forEach(sched => {
+  list.forEach(s => {
     const item = document.createElement('div');
-    item.className = `schedule-item ${sched.enabled ? '' : 'disabled'}`;
+    item.className = 'schedule-item';
 
-    const relayObj = dev && dev.relays ? dev.relays.find(r => r.channel === sched.channel) : null;
-    const relayCustomName = relayObj ? relayObj.name : `Relay #${sched.channel}`;
+    const daysText = (Array.isArray(s.days) && s.days.length > 0)
+      ? s.days.map(d => DAY_NAMES[d]).join(', ')
+      : 'Setiap Hari';
 
-    const actionText = sched.action === 'on' ? 'ON' : sched.action === 'off' ? 'OFF' : 'Toggle';
-    const daysText = sched.days && sched.days.length > 0 ? '' : 'Setiap hari';
-
-    let dayBadgesHtml = '';
-    if (sched.days && sched.days.length > 0) {
-      dayBadgesHtml = DAY_NAMES.map((name, idx) => {
-        const isActive = sched.days.includes(idx);
-        return `<span class="schedule-day-badge ${isActive ? 'active-day' : ''}">${name}</span>`;
-      }).join('');
-    }
-
-    const durationBadgeHtml = (sched.duration && sched.duration > 0)
-      ? `<span class="schedule-duration-badge">⏱️ ${sched.duration}m</span>`
-      : '';
-
-    const nextRunText = sched.enabled ? calculateNextRunText(sched.time, sched.days) : '';
-    const nextRunHtml = nextRunText ? `<div class="schedule-next-run">${nextRunText}</div>` : '';
+    const targetName = s.label || s.componentId || `Relay #${s.channel}`;
 
     item.innerHTML = `
-      <div class="schedule-item-time">${sched.time}</div>
-      <div class="schedule-item-info">
-        <div class="schedule-item-label">${escapeHtml(sched.label)}</div>
-        <div class="schedule-item-meta">Relay #${sched.channel} (${escapeHtml(relayCustomName)}) &bull; ${actionText} ${daysText} ${durationBadgeHtml}</div>
-        ${nextRunHtml}
-        ${dayBadgesHtml ? `<div class="schedule-item-days">${dayBadgesHtml}</div>` : ''}
+      <div class="sched-info">
+        <div class="sched-header-row">
+          <span class="sched-name">${escapeHtml(targetName)}</span>
+          <span class="sched-time-badge">${s.time}</span>
+        </div>
+        <div class="sched-meta">
+          <span>${daysText}</span> &bull; 
+          <span>Aksi: <strong>${s.action.toUpperCase()}</strong></span>
+          ${s.duration > 0 ? ` &bull; <span>Auto-off: ${s.duration}m</span>` : ''}
+        </div>
       </div>
-      <div class="schedule-item-actions">
-        <button class="btn-edit-schedule" title="Edit Jadwal">
-          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-        </button>
-        <label class="toggle-mini" title="Aktifkan/Nonaktifkan">
-          <input type="checkbox" ${sched.enabled ? 'checked' : ''} data-sched-id="${sched.id}">
+      <div class="sched-actions">
+        <label class="toggle-mini">
+          <input type="checkbox" ${s.enabled ? 'checked' : ''} data-sched-id="${s.id}">
           <span class="toggle-mini-slider"></span>
         </label>
-        <button class="btn-delete-schedule" data-sched-id="${sched.id}" title="Hapus jadwal">
-          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6l-2 14H7L5 6"></path>
-          </svg>
+        <button type="button" class="btn-delete-schedule" data-sched-id="${s.id}" title="Hapus">
+          🗑️
         </button>
       </div>
     `;
 
-    // Toggle on/off
-    item.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
-      toggleSchedule(sched.id, e.target.checked);
+    item.querySelector('input[type="checkbox"]').addEventListener('change', async (e) => {
+      try {
+        await apiRequest(`/api/schedules/${s.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ enabled: e.target.checked })
+        });
+        loadSchedules();
+      } catch (err) {}
     });
 
-    // Edit schedule modal
-    item.querySelector('.btn-edit-schedule').addEventListener('click', () => {
-      openEditScheduleModal(sched);
-    });
-
-    // Delete schedule
     item.querySelector('.btn-delete-schedule').addEventListener('click', () => {
-      openCustomModal({
-        title: 'Hapus Jadwal',
-        bodyHtml: `<p style="font-size: 0.9rem; color: var(--text-muted);">Apakah Anda yakin ingin menghapus jadwal <strong>"${escapeHtml(sched.label)}"</strong>?</p>`,
-        confirmText: 'Hapus',
-        isDanger: true,
-        onConfirm: async () => {
-          await deleteSchedule(sched.id);
-        }
+      showCustomConfirm('Hapus Jadwal?', `<p>Hapus jadwal <strong>"${escapeHtml(targetName)}"</strong>?</p>`, async () => {
+        try {
+          await apiRequest(`/api/schedules/${s.id}`, { method: 'DELETE' });
+          loadSchedules();
+          showToast('Jadwal dihapus');
+        } catch (err) {}
       });
     });
 
@@ -1187,416 +1651,158 @@ function renderScheduleList() {
   });
 }
 
-async function toggleSchedule(scheduleId, enabled) {
-  try {
-    const res = await fetch(`/api/schedules/${scheduleId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({ enabled })
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`Jadwal ${enabled ? 'diaktifkan' : 'dinonaktifkan'}`);
-      loadSchedules();
-    }
-  } catch (e) {
-    showToast('Gagal mengubah status jadwal');
-  }
-}
-
-async function deleteSchedule(scheduleId) {
-  try {
-    const res = await fetch(`/api/schedules/${scheduleId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    });
-    const data = await res.json();
-    if (data.success) {
-      showToast('Jadwal berhasil dihapus');
-      loadSchedules();
-    }
-  } catch (e) {
-    showToast('Gagal menghapus jadwal');
-  }
-}
-
-// Modal Edit Jadwal
-function openEditScheduleModal(sched) {
-  let editSelectedDays = Array.isArray(sched.days) ? [...sched.days] : [];
-  const dev = appDevices[sched.deviceId] || appDevices[activeDeviceId];
-
-  let relayOptionsHtml = '';
-  const relayCount = (dev && dev.relays) ? dev.relays.length : 4;
-  for (let i = 1; i <= relayCount; i++) {
-    const r = dev && dev.relays ? dev.relays.find(x => x.channel === i) : null;
-    const name = r ? r.name : `Saklar ${i}`;
-    relayOptionsHtml += `<option value="${i}" ${sched.channel === i ? 'selected' : ''}>Relay #${i} - ${escapeHtml(name)}</option>`;
-  }
-
-  let daysChipsHtml = DAY_NAMES.map((name, idx) => {
-    const isSel = editSelectedDays.includes(idx);
-    return `<button type="button" class="day-chip ${isSel ? 'selected' : ''}" data-day="${idx}">${name}</button>`;
-  }).join('');
-
-  openCustomModal({
-    title: 'Edit Jadwal',
-    bodyHtml: `
-      <div class="form-group">
-        <label class="form-label">Relay Target</label>
-        <select id="editSchedChannel" class="form-input">${relayOptionsHtml}</select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Aksi</label>
-        <select id="editSchedAction" class="form-input">
-          <option value="on" ${sched.action === 'on' ? 'selected' : ''}>Nyalakan (ON)</option>
-          <option value="off" ${sched.action === 'off' ? 'selected' : ''}>Matikan (OFF)</option>
-          <option value="toggle" ${sched.action === 'toggle' ? 'selected' : ''}>Toggle</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Jam Eksekusi</label>
-        <input type="time" id="editSchedTime" class="form-input" value="${sched.time}" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Durasi (Menit, Auto-Off)</label>
-        <input type="number" id="editSchedDuration" class="form-input" min="1" max="1440" value="${sched.duration || ''}" placeholder="Kosongkan jika tanpa durasi">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Hari Eksekusi</label>
-        <div class="days-chips" id="editDaysChips">${daysChipsHtml}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Label</label>
-        <input type="text" id="editSchedLabel" class="form-input" value="${escapeHtml(sched.label)}" maxlength="40">
-      </div>
-    `,
-    confirmText: 'Simpan Perubahan',
-    onConfirm: async (body) => {
-      const timeVal = body.querySelector('#editSchedTime').value;
-      if (!timeVal) {
-        showToast('Jam wajib diisi');
-        return false;
-      }
-
-      const channelVal = parseInt(body.querySelector('#editSchedChannel').value);
-      const actionVal = body.querySelector('#editSchedAction').value;
-      const durationVal = parseInt(body.querySelector('#editSchedDuration').value) || 0;
-      const labelVal = body.querySelector('#editSchedLabel').value.trim() || `Jadwal Relay #${channelVal}`;
-
-      const updatePayload = {
-        deviceId: sched.deviceId,
-        channel: channelVal,
-        action: actionVal,
-        time: timeVal,
-        days: editSelectedDays.sort(),
-        duration: durationVal,
-        label: labelVal
-      };
-
-      try {
-        const res = await fetch(`/api/schedules/${sched.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-          },
-          body: JSON.stringify(updatePayload)
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('Jadwal berhasil diperbarui');
-          loadSchedules();
-          return true;
-        } else {
-          showToast(data.message || 'Gagal update jadwal');
-          return false;
-        }
-      } catch (e) {
-        showToast('Kesalahan koneksi');
-        return false;
-      }
-    }
+// -------------------------------------------------------------
+// TAB 3: RIWAYAT AKTIVITAS
+// -------------------------------------------------------------
+const logFilterPills = document.querySelectorAll('.log-filter-bar .filter-pill');
+logFilterPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    logFilterPills.forEach(p => p.classList.toggle('active', p === pill));
+    activeLogFilter = pill.dataset.filter || 'all';
+    renderActivityLogs();
   });
+});
 
-  // Listener chip di dalam modal
-  setTimeout(() => {
-    const chipsContainer = document.getElementById('editDaysChips');
-    if (chipsContainer) {
-      chipsContainer.querySelectorAll('.day-chip').forEach(c => {
-        c.addEventListener('click', () => {
-          const d = parseInt(c.dataset.day);
-          if (editSelectedDays.includes(d)) {
-            editSelectedDays = editSelectedDays.filter(x => x !== d);
-            c.classList.remove('selected');
-          } else {
-            editSelectedDays.push(d);
-            c.classList.add('selected');
-          }
-        });
-      });
-    }
-  }, 100);
-}
-
-// -------------------------------------------------------------
-// Activity Log Viewer (Tab 3)
-// -------------------------------------------------------------
 async function loadActivityLogs() {
-  if (!authToken) return;
+  if (!activityTimeline) return;
   activityTimeline.innerHTML = '<div class="empty-timeline-msg">Memuat data aktivitas...</div>';
-
   try {
-    const res = await fetch('/api/logs?limit=80', {
-      headers: { 'Authorization': `Bearer ${authToken}` }
-    });
-    const data = await res.json();
-    if (data.success && Array.isArray(data.data)) {
-      activityLogs = data.data;
+    const url = activeDeviceId ? `/api/logs?deviceId=${activeDeviceId}&limit=60` : '/api/logs?limit=60';
+    const res = await apiRequest(url);
+    if (res && res.success) {
+      activityLogs = res.data || [];
       renderActivityLogs();
-    } else {
-      activityTimeline.innerHTML = '<div class="empty-timeline-msg">Gagal memuat log</div>';
     }
   } catch (err) {
-    activityTimeline.innerHTML = '<div class="empty-timeline-msg">Gagal menghubungi server</div>';
-  }
-}
-
-function formatRelativeTime(isoString) {
-  try {
-    const d = new Date(isoString);
-    const now = new Date();
-    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000);
-
-    if (diffSec < 30) return 'Baru saja';
-    if (diffSec < 60) return `${diffSec} detik lalu`;
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)} menit lalu`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} jam lalu`;
-
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return isoString;
+    activityTimeline.innerHTML = '<div class="empty-timeline-msg">Gagal memuat log</div>';
   }
 }
 
 function renderActivityLogs() {
   if (!activityTimeline) return;
 
-  let filtered = activityLogs;
+  let list = activityLogs;
   if (activeLogFilter === 'control') {
-    filtered = activityLogs.filter(l => l.event.startsWith('control_'));
+    list = activityLogs.filter(l => l.event.includes('control'));
   } else if (activeLogFilter === 'schedule') {
-    filtered = activityLogs.filter(l => l.event.startsWith('schedule_'));
+    list = activityLogs.filter(l => l.event.includes('schedule'));
   } else if (activeLogFilter === 'device') {
-    filtered = activityLogs.filter(l => l.event.startsWith('device_') || l.event.startsWith('auth_') || l.event.startsWith('rename_'));
+    list = activityLogs.filter(l => l.event.includes('device') || l.event.includes('i2c') || l.event.includes('ota'));
   }
 
-  if (filtered.length === 0) {
-    activityTimeline.innerHTML = '<div class="empty-timeline-msg">Belum ada aktivitas tercatat untuk filter ini.</div>';
+  if (list.length === 0) {
+    activityTimeline.innerHTML = '<div class="empty-timeline-msg">Tidak ada catatan aktivitas.</div>';
     return;
   }
 
   activityTimeline.innerHTML = '';
-  filtered.forEach(log => {
+  list.forEach(l => {
     const item = document.createElement('div');
     item.className = 'timeline-item';
+    const timeFormatted = new Date(l.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-    let iconClass = 'control';
-    let iconChar = '⚡';
-    let titleText = log.event;
-
-    if (log.event.startsWith('control_')) {
-      iconClass = 'control';
-      iconChar = '⚡';
-      titleText = 'Kontrol Saklar';
-    } else if (log.event.startsWith('schedule_')) {
-      iconClass = 'schedule';
-      iconChar = '⏰';
-      titleText = 'Jadwal Otomatis';
-    } else if (log.event.startsWith('device_')) {
-      iconClass = 'device';
-      iconChar = '🌐';
-      titleText = 'Sistem Hardware';
-    } else if (log.event.startsWith('auth_')) {
-      iconClass = 'auth';
-      iconChar = '🔒';
-      titleText = 'Keamanan Akun';
-    }
-
-    let detailText = log.details || '';
-    try {
-      if (detailText.startsWith('{') && detailText.endsWith('}')) {
-        const obj = JSON.parse(detailText);
-        if (obj.channel !== undefined) {
-          detailText = `Saklar #${obj.channel} -> ${obj.state ? 'MENYALA' : 'MATI'}${obj.duration ? ` (${obj.duration}s)` : ''}`;
-        }
-      }
-    } catch {}
-
+    let detailsText = typeof l.details === 'object' ? JSON.stringify(l.details) : String(l.details || '');
     item.innerHTML = `
-      <div class="timeline-icon-box ${iconClass}">${iconChar}</div>
+      <div class="timeline-dot"></div>
       <div class="timeline-content">
-        <div class="timeline-header-row">
-          <span class="timeline-event-name">${titleText}</span>
-          <span class="timeline-time">${formatRelativeTime(log.timestamp)}</span>
+        <div class="timeline-header">
+          <span class="timeline-event">${escapeHtml(l.event)}</span>
+          <span class="timeline-time">${timeFormatted}</span>
         </div>
-        <div class="timeline-desc">${escapeHtml(detailText || log.event)}</div>
+        <div class="timeline-desc">${escapeHtml(detailsText)}</div>
       </div>
     `;
-
     activityTimeline.appendChild(item);
   });
 }
 
-// Log Filter Pill Clicks
-document.querySelectorAll('.filter-pill').forEach(pill => {
-  pill.addEventListener('click', () => {
-    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
-    pill.classList.add('active');
-    activeLogFilter = pill.dataset.filter;
-    renderActivityLogs();
-  });
-});
+if (btnRefreshLogs) btnRefreshLogs.addEventListener('click', loadActivityLogs);
 
-if (btnRefreshLogs) {
-  btnRefreshLogs.addEventListener('click', () => {
-    loadActivityLogs();
-    showToast('Log aktivitas disegarkan');
+// -------------------------------------------------------------
+// TAB 4: PENGATURAN & KEAMANAN
+// -------------------------------------------------------------
+if (btnSyncJson) {
+  btnSyncJson.addEventListener('click', async () => {
+    try {
+      const res = await apiRequest('/api/sync-json', { method: 'POST' });
+      showToast(res && res.success ? 'Sinkronisasi SQLite-JSON berhasil' : 'Gagal sinkronisasi');
+    } catch (e) {
+      showToast('Gagal sinkronisasi', 'error');
+    }
   });
 }
 
-// -------------------------------------------------------------
-// Settings Tab: Kustomisasi Nama Saklar & Sinkronisasi
-// -------------------------------------------------------------
 function renderRelayNamingList() {
   if (!relayNamingList) return;
   const dev = appDevices[activeDeviceId];
-
-  if (!dev || !dev.relays || dev.relays.length === 0) {
-    relayNamingList.innerHTML = '<p style="color: var(--text-subtle); font-size: 0.8rem;">Tidak ada relay untuk dikustomisasi.</p>';
+  if (!dev || !Array.isArray(dev.relays) || dev.relays.length === 0) {
+    relayNamingList.innerHTML = '<p style="color: var(--text-subtle); font-size: 0.8rem;">Tidak ada saklar relay pada perangkat ini.</p>';
     return;
   }
 
   relayNamingList.innerHTML = '';
   dev.relays.forEach(r => {
     const row = document.createElement('div');
-    row.className = 'relay-naming-item';
+    row.className = 'settings-item-row';
     row.innerHTML = `
-      <div class="relay-naming-info">
-        <span style="font-weight: 700; color: var(--primary-glow); font-size: 0.85rem;">#${r.channel}</span>
-        <span style="font-size: 0.88rem; font-weight: 600;">${escapeHtml(r.name)}</span>
+      <div>
+        <div class="settings-item-title">Saklar #${r.channel}</div>
+        <div class="settings-item-sub">Nama saat ini: <strong>${escapeHtml(r.name)}</strong></div>
       </div>
-      <button class="btn-action-secondary" type="button" data-channel="${r.channel}">
-        <span>Ubah Nama</span>
-      </button>
+      <button type="button" class="btn-action-secondary btn-rename-relay" data-ch="${r.channel}">Ubah Nama</button>
     `;
-
-    row.querySelector('button').addEventListener('click', () => {
-      promptRenameRelayModal(dev.deviceId, r.channel, r.name);
+    row.querySelector('.btn-rename-relay').addEventListener('click', () => {
+      promptRenameComponent(`relay_${r.channel}`, r.name);
     });
-
     relayNamingList.appendChild(row);
   });
 }
 
-// Tombol Sinkronisasi JSON & SQLite
-if (btnSyncJson) {
-  btnSyncJson.addEventListener('click', async () => {
-    try {
-      btnSyncJson.disabled = true;
-      btnSyncJson.innerHTML = '<span>Sinkronisasi...</span>';
-
-      const res = await fetch('/api/schedules/sync-json', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${authToken}` }
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        showToast(data.message);
-        loadSchedules();
-      } else {
-        showToast(data.message || 'Gagal sinkronisasi');
+if (btnChangePassword) {
+  btnChangePassword.addEventListener('click', () => {
+    openCustomModal({
+      title: 'Ubah Password Administrator',
+      bodyHtml: `
+        <div class="form-group">
+          <label class="form-label">Password Saat Ini</label>
+          <input type="password" id="curPass" class="form-input" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password Baru (min 6 karakter)</label>
+          <input type="password" id="newPass" class="form-input" required>
+        </div>
+      `,
+      confirmText: 'Ubah Password',
+      onConfirm: async (body) => {
+        const curP = body.querySelector('#curPass').value;
+        const newP = body.querySelector('#newPass').value;
+        try {
+          const res = await apiRequest('/api/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword: curP, newPassword: newP })
+          });
+          if (res && res.success) {
+            showToast('Password berhasil diubah!');
+            return true;
+          } else {
+            showToast(res ? res.message : 'Gagal ubah password', 'error');
+            return false;
+          }
+        } catch (err) {
+          showToast(err.message, 'error');
+          return false;
+        }
       }
-    } catch (e) {
-      showToast('Gagal sinkronisasi');
-    } finally {
-      btnSyncJson.disabled = false;
-      btnSyncJson.innerHTML = `
-        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
-          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-        </svg>
-        <span>Sinkronkan</span>
-      `;
-    }
+    });
   });
 }
 
 // -------------------------------------------------------------
-// PWA Installation
+// DYNAMIC PIN & SENSOR MANAGER MODAL (Zero-Code Plug & Play)
 // -------------------------------------------------------------
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  if (installAppContainer) installAppContainer.classList.remove('hidden');
-});
-
-if (btnInstallApp) {
-  btnInstallApp.addEventListener('click', async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      deferredPrompt = null;
-      if (installAppContainer) installAppContainer.classList.add('hidden');
-    }
-  });
-}
-
-window.addEventListener('appinstalled', () => {
-  if (installAppContainer) installAppContainer.classList.add('hidden');
-  showToast('Aplikasi berhasil dipasang di layar utama!');
-});
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .catch(err => console.error('[SW]', err));
-  });
-}
-
-// =============================================================
-// DYNAMIC PIN MANAGER & SENSOR COMPONENTS (Zero-Code Node)
-// =============================================================
-
-// DOM Elements: Pin Manager Modal
-const modalPinManager = document.getElementById('modalPinManager');
-const btnOpenPinManager = document.getElementById('btnOpenPinManager');
-const btnClosePinManager = document.getElementById('btnClosePinManager');
-const btnQuickAddPin = document.getElementById('btnQuickAddPin');
-const pinTabBtns = document.querySelectorAll('.pin-tab-btn');
-const pinTabContents = document.querySelectorAll('.pin-tab-content');
-const pinManagerDeviceLabel = document.getElementById('pinManagerDeviceLabel');
-const countActiveComponents = document.getElementById('countActiveComponents');
-const activePinsList = document.getElementById('activePinsList');
-const formAddPin = document.getElementById('formAddPin');
-const pinSelect = document.getElementById('pinSelect');
-const pinDriverType = document.getElementById('pinDriverType');
-const pinCompName = document.getElementById('pinCompName');
-const pinCompUnit = document.getElementById('pinCompUnit');
-const pinReadInterval = document.getElementById('pinReadInterval');
-const pinActiveLow = document.getElementById('pinActiveLow');
-const btnTriggerI2cScan = document.getElementById('btnTriggerI2cScan');
-const i2cScanStatus = document.getElementById('i2cScanStatus');
-const i2cResultsContainer = document.getElementById('i2cResultsContainer');
-const componentsSection = document.getElementById('componentsSection');
-const componentsGrid = document.getElementById('componentsGrid');
-
-// Buka Modal Pin Manager
 function openPinManager(initialTab = 'tabListPins') {
   if (!activeDeviceId) {
-    showToast('Pilih perangkat IoT terlebih dahulu');
+    showToast('Pilih perangkat IoT terlebih dahulu', 'warning');
     return;
   }
   const dev = appDevices[activeDeviceId];
@@ -1608,12 +1814,10 @@ function openPinManager(initialTab = 'tabListPins') {
   if (modalPinManager) modalPinManager.classList.remove('hidden');
 }
 
-// Tutup Modal Pin Manager
 function closePinManager() {
   if (modalPinManager) modalPinManager.classList.add('hidden');
 }
 
-// Switch Tab di dalam Modal
 function switchPinTab(tabId) {
   if (pinTabBtns) {
     pinTabBtns.forEach(btn => {
@@ -1625,79 +1829,26 @@ function switchPinTab(tabId) {
       content.classList.toggle('active', content.id === tabId);
     });
   }
-  if (tabId === 'tabListPins') {
-    renderActivePinsList();
-  }
+  if (tabId === 'tabListPins') renderActivePinsList();
 }
 
-// Event Listeners Pin Modal Controls
-if (btnOpenPinManager) {
-  btnOpenPinManager.addEventListener('click', () => openPinManager('tabListPins'));
-}
-if (btnQuickAddPin) {
-  btnQuickAddPin.addEventListener('click', () => openPinManager('tabAddPin'));
-}
-if (btnClosePinManager) {
-  btnClosePinManager.addEventListener('click', closePinManager);
-}
-if (modalPinManager) {
-  modalPinManager.addEventListener('click', (e) => {
-    if (e.target === modalPinManager) closePinManager();
-  });
-}
-if (pinTabBtns) {
-  pinTabBtns.forEach(btn => {
-    btn.addEventListener('click', () => switchPinTab(btn.dataset.pinTab));
-  });
-}
+if (btnOpenPinManager) btnOpenPinManager.addEventListener('click', () => openPinManager('tabListPins'));
+if (btnClosePinManager) btnClosePinManager.addEventListener('click', closePinManager);
 
-// Auto-fill Unit & Nama default saat ganti tipe sensor
-if (pinDriverType) {
-  pinDriverType.addEventListener('change', () => {
-    const val = pinDriverType.value;
-    if (val === 'dht11' || val === 'dht22') {
-      pinCompName.value = val === 'dht11' ? 'DHT11 Suhu' : 'DHT22 Suhu Ruangan';
-      pinCompUnit.value = '°C';
-      pinReadInterval.value = '5';
-    } else if (val === 'ds18b20') {
-      pinCompName.value = 'DS18B20 Suhu Air';
-      pinCompUnit.value = '°C';
-      pinReadInterval.value = '5';
-    } else if (val === 'analog') {
-      pinCompName.value = 'Sensor Analog A0';
-      pinCompUnit.value = '';
-      pinReadInterval.value = '3';
-    } else if (val === 'digital_in') {
-      pinCompName.value = 'PIR Sensor Gerak';
-      pinCompUnit.value = '';
-      pinReadInterval.value = '1';
-    } else if (val === 'switch') {
-      pinCompName.value = 'Saklar Fisik';
-      pinCompUnit.value = '';
-      pinReadInterval.value = '1';
-    }
-  });
-}
+pinTabBtns.forEach(btn => {
+  btn.addEventListener('click', () => switchPinTab(btn.dataset.pinTab));
+});
 
-// Render Daftar Komponen Aktif di Modal
 function renderActivePinsList() {
   if (!activePinsList) return;
   const dev = appDevices[activeDeviceId];
   const comps = (dev && Array.isArray(dev.components)) ? dev.components : [];
-
-  if (countActiveComponents) {
-    countActiveComponents.textContent = comps.length;
-  }
+  if (countActiveComponents) countActiveComponents.textContent = comps.length;
 
   if (comps.length === 0) {
     activePinsList.innerHTML = `
-      <div style="text-align: center; padding: 28px 12px; color: var(--text-subtle); background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 10px;">
-        <div style="font-size: 1.8rem; margin-bottom: 8px;">🔌</div>
-        <p style="margin: 0; font-size: 0.84rem; font-weight: 600; color: var(--text-main);">Belum ada sensor atau saklar yang terpasang</p>
-        <p style="margin: 4px 0 12px 0; font-size: 0.75rem;">Tambahkan sensor tanpa perlu coding file C++.</p>
-        <button type="button" class="btn-primary-action" onclick="switchPinTab('tabAddPin')" style="display:inline-block; font-size: 0.78rem; padding: 6px 14px;">
-          ➕ Tambah Pin Sekarang
-        </button>
+      <div class="empty-pins-msg">
+        <span>Belum ada modul atau sensor yang terpasang pada perangkat ini.</span>
       </div>
     `;
     return;
@@ -1706,256 +1857,126 @@ function renderActivePinsList() {
   activePinsList.innerHTML = '';
   comps.forEach(c => {
     const item = document.createElement('div');
-    item.className = 'pin-item-card';
-
-    let icon = '📊';
-    const driver = c.driver || c.type || '';
-    if (driver === 'switch') icon = '🔌';
-    else if (driver === 'digital_in' || driver === 'indicator') icon = '🚨';
-    else if (driver.startsWith('dht') || driver === 'ds18b20') icon = '🌡️';
-    else if (driver === 'analog') icon = '📈';
-    else if (driver === 'i2c') icon = '💡';
-
-    let pinLabel = (c.pin >= 0) ? `Pin GPIO ${c.pin}` : 'Virtual';
-    if (c.pin === 17) pinLabel = 'Pin A0 (ADC)';
-    else if (c.pin === 14) pinLabel = 'Pin D5 (GPIO14)';
-    else if (c.pin === 12) pinLabel = 'Pin D6 (GPIO12)';
-    else if (c.pin === 13) pinLabel = 'Pin D7 (GPIO13)';
-    else if (c.pin === 4) pinLabel = 'Pin D2 (GPIO4)';
-    else if (c.pin === 5) pinLabel = 'Pin D1 (GPIO5)';
-    else if (c.pin === 16) pinLabel = 'Pin D0 (GPIO16)';
-    else if (c.pin === 0) pinLabel = 'Pin D3 (GPIO0)';
-    else if (c.pin === 2) pinLabel = 'Pin D4 (GPIO2)';
-
-    let displayVal = c.value || '0';
-    if (c.type === 'switch') {
-      displayVal = (c.value === 'true' || c.value === '1') ? 'ON' : 'OFF';
-    } else if (driver === 'digital_in') {
-      displayVal = (c.value === '1' || c.value === 'true') ? 'AKTIF' : 'NORMAL';
-    } else if (c.unit) {
-      displayVal += ' ' + c.unit;
-    }
+    item.className = 'pin-item-row';
+    const pinLabel = c.pin >= 0 ? `Pin ${c.pin}` : 'I2C/Virtual';
 
     item.innerHTML = `
-      <div class="pin-item-left">
-        <span class="pin-badge ${c.pin === 17 ? 'pin-analog' : ''}">${pinLabel}</span>
-        <div class="pin-item-info">
-          <span class="pin-item-name">${icon} ${escapeHtml(c.name || c.id)}</span>
-          <span class="pin-item-type">Tipe: ${driver.toUpperCase()} | ID: ${escapeHtml(c.id)}</span>
+      <div class="pin-info">
+        <span class="pin-badge">${pinLabel}</span>
+        <div class="pin-details">
+          <span class="pin-name">${escapeHtml(c.name || c.id)}</span>
+          <span class="pin-driver">Driver: ${escapeHtml(c.driver || c.type)} &bull; Nilai: ${escapeHtml(c.value || '0')} ${escapeHtml(c.unit || '')}</span>
         </div>
       </div>
-      <div class="pin-item-right">
-        <span class="pin-live-val">${escapeHtml(displayVal)}</span>
-        <button type="button" class="btn-delete-pin" title="Hapus Pin" data-comp-id="${c.id}">
-          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-        </button>
+      <div class="pin-actions">
+        <button type="button" class="btn-icon-action btn-del-pin" title="Lepas Modul">🗑️</button>
       </div>
     `;
 
-    const btnDel = item.querySelector('.btn-delete-pin');
-    btnDel.addEventListener('click', () => {
-      confirmDeleteComponent(c.id, c.name || c.id);
+    item.querySelector('.btn-del-pin').addEventListener('click', () => {
+      confirmDeleteComponent(c.id, c.name);
     });
 
     activePinsList.appendChild(item);
   });
 }
 
-// Konfirmasi & Eksekusi Hapus Komponen Pin
-function confirmDeleteComponent(compId, compName) {
-  openCustomModal({
-    title: 'Hapus Pin / Sensor',
-    bodyHtml: `<p style="font-size: 0.9rem; color: var(--text-muted);">Apakah Anda yakin ingin menghapus komponen <b>"${escapeHtml(compName)}"</b>?<br><br>Konfigurasi akan dihapus dari server dan pin pada mikrokontroler akan dilepaskan.</p>`,
-    confirmText: 'Ya, Hapus',
-    isDanger: true,
-    onConfirm: async () => {
-      try {
-        const res = await fetch(`/api/devices/${activeDeviceId}/components/${encodeURIComponent(compId)}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast(`Komponen "${compName}" berhasil dihapus`);
-          if (data.data) {
-            appDevices[activeDeviceId] = data.data;
-          }
-          renderActivePinsList();
-          renderDashboard();
-        } else {
-          showToast(data.message || 'Gagal menghapus komponen');
-        }
-      } catch (err) {
-        showToast('Error saat menghubungi server');
-      }
-    }
-  });
-}
-
-// Submit Form Tambah Pin Baru
+// Form Add Pin Submit
 if (formAddPin) {
   formAddPin.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!activeDeviceId) return;
-
-    const pinVal = pinSelect.value;
-    const driverVal = pinDriverType.value;
-    const nameVal = pinCompName.value.trim() || `Sensor Pin ${pinVal}`;
-    let unitVal = pinCompUnit.value.trim();
-    const intervalSec = parseInt(pinReadInterval.value) || 5;
-    const activeLowVal = pinActiveLow.value === 'true';
-
-    let compType = 'sensor';
-    let i2cAddr = 0;
-    if (driverVal === 'switch') {
-      compType = 'switch';
-    } else if (driverVal === 'dimmer') {
-      compType = 'dimmer';
-      if (!unitVal) unitVal = '%';
-    } else if (driverVal === 'digital_in') {
-      compType = 'indicator';
-    } else if (driverVal === 'bmp280') {
-      compType = 'sensor';
-      i2cAddr = 0x76;
-      if (!unitVal) unitVal = '°C';
-    } else if (driverVal === 'bh1750') {
-      compType = 'sensor';
-      i2cAddr = 0x23;
-      if (!unitVal) unitVal = 'Lux';
-    } else if (driverVal === 'sht30') {
-      compType = 'sensor';
-      i2cAddr = 0x44;
-      if (!unitVal) unitVal = '°C';
-    } else if (driverVal === 'aht10') {
-      compType = 'sensor';
-      i2cAddr = 0x38;
-      if (!unitVal) unitVal = '°C';
+    if (!activeDeviceId) {
+      showToast('Pilih perangkat terlebih dahulu', 'warning');
+      return;
     }
 
-    const compId = (i2cAddr > 0) ? `i2c_${driverVal}_0x${i2cAddr.toString(16)}` : `pin_${pinVal}_${driverVal}`;
+    const pin = parseInt(pinSelect.value);
+    const driver = pinDriverType.value;
+    const name = pinCompName.value.trim();
+    const unit = pinCompUnit.value.trim();
+    const interval = parseInt(pinReadInterval.value) || 5;
+    const activeLow = pinActiveLow.value === 'true';
 
-    const payload = {
-      id: compId,
-      componentId: compId,
-      name: nameVal,
-      type: compType,
-      driver: driverVal,
-      pin: (i2cAddr > 0) ? -1 : parseInt(pinVal),
-      i2cAddr: i2cAddr,
-      unit: unitVal,
-      activeLow: activeLowVal,
-      pullup: true,
-      readIntervalMs: intervalSec * 1000
+    let type = 'sensor';
+    let access = 'r';
+    if (driver === 'switch') {
+      type = 'switch';
+      access = 'rw';
+    } else if (driver === 'dimmer') {
+      type = 'dimmer';
+      access = 'rw';
+    } else if (driver === 'digital_in') {
+      type = 'indicator';
+      access = 'r';
+    }
+
+    const id = `${driver}_${pin >= 0 ? pin : Date.now()}`;
+
+    const compData = {
+      id,
+      name,
+      type,
+      driver,
+      pin,
+      unit,
+      access,
+      activeLow,
+      interval: interval * 1000
     };
 
-    const btnSubmit = document.getElementById('btnSavePinConfig');
-    if (btnSubmit) {
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = 'Menyimpan...';
-    }
-
     try {
-      const res = await fetch(`/api/devices/${activeDeviceId}/components`, {
+      const res = await apiRequest(`/api/devices/${activeDeviceId}/components`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(compData)
       });
-      const data = await res.json();
-
-      if (data.success) {
-        showToast(`✅ Sensor "${nameVal}" berhasil dikonfigurasi!`);
-        if (data.data) {
-          appDevices[activeDeviceId] = data.data;
-        }
+      if (res && res.success) {
+        showToast(`Modul "${name}" berhasil dipasang!`);
         formAddPin.reset();
         switchPinTab('tabListPins');
         renderDashboard();
       } else {
-        showToast(data.message || 'Gagal menyimpan konfigurasi');
+        showToast(res ? res.message : 'Gagal memasang modul', 'error');
       }
     } catch (err) {
-      showToast('Gagal menghubungi server');
-    } finally {
-      if (btnSubmit) {
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = '💾 Simpan & Terapkan ke Alat';
-      }
+      showToast(err.message, 'error');
     }
   });
 }
 
-// Trigger Pemindaian I2C ke Hardware
+// I2C Remote Scanner
 if (btnTriggerI2cScan) {
   btnTriggerI2cScan.addEventListener('click', async () => {
-    if (!activeDeviceId) return;
-    const dev = appDevices[activeDeviceId];
-    if (!dev || !dev.isOnline) {
-      showToast('Perangkat sedang offline, tidak dapat memindai I2C');
+    if (!activeDeviceId) {
+      showToast('Pilih perangkat terlebih dahulu', 'warning');
       return;
     }
-
-    btnTriggerI2cScan.classList.add('scanning');
     btnTriggerI2cScan.disabled = true;
-    if (i2cScanStatus) i2cScanStatus.textContent = 'Mengirim sinyal scan ke hardware...';
-    if (i2cResultsContainer) {
-      i2cResultsContainer.innerHTML = `
-        <div style="text-align:center; padding: 24px 0; color: var(--text-muted);">
-          <div class="pulse-ring" style="display:inline-block; font-size: 2rem; margin-bottom: 8px;">📡</div>
-          <p style="font-size: 0.82rem;">Memindai jalur I2C bus (alamat 0x01 s/d 0x7F)...</p>
-        </div>
-      `;
-    }
+    if (i2cScanStatus) i2cScanStatus.textContent = 'Hardware sedang memindai bus I2C...';
 
     try {
-      const res = await fetch(`/api/devices/${activeDeviceId}/scan-i2c`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({})
-      });
-      const data = await res.json();
-      if (!data.success) {
-        showToast(data.message || 'Gagal memulai pemindaian I2C');
-        btnTriggerI2cScan.classList.remove('scanning');
-        btnTriggerI2cScan.disabled = false;
-        if (i2cScanStatus) i2cScanStatus.textContent = 'Gagal memindai';
+      const res = await apiRequest(`/api/devices/${activeDeviceId}/scan-i2c`, { method: 'POST' });
+      if (res && res.success) {
+        showToast('Instruksi scan dikirim ke hardware...');
       } else {
-        if (i2cScanStatus) i2cScanStatus.textContent = 'Menunggu balasan dari Wemos...';
+        showToast(res ? res.message : 'Gagal mengirim instruksi scan', 'error');
+        btnTriggerI2cScan.disabled = false;
       }
     } catch (err) {
-      showToast('Gagal menghubungi server');
-      btnTriggerI2cScan.classList.remove('scanning');
+      showToast(err.message, 'error');
       btnTriggerI2cScan.disabled = false;
-      if (i2cScanStatus) i2cScanStatus.textContent = 'Error koneksi';
     }
   });
 }
 
-// Render Hasil Pemindaian I2C
 function renderI2cScanResults(devices = []) {
-  if (btnTriggerI2cScan) {
-    btnTriggerI2cScan.classList.remove('scanning');
-    btnTriggerI2cScan.disabled = false;
-  }
-  if (i2cScanStatus) {
-    i2cScanStatus.textContent = `Ditemukan ${devices.length} modul I2C`;
-  }
+  if (btnTriggerI2cScan) btnTriggerI2cScan.disabled = false;
+  if (i2cScanStatus) i2cScanStatus.textContent = `Ditemukan ${devices.length} modul I2C`;
   if (!i2cResultsContainer) return;
 
   if (devices.length === 0) {
     i2cResultsContainer.innerHTML = `
-      <div style="text-align:center; padding: 24px 12px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 10px;">
-        <span style="font-size: 1.6rem; display:block; margin-bottom: 6px;">🔌</span>
-        <p style="margin: 0; font-size: 0.84rem; font-weight: 600; color: var(--text-main);">Tidak ada perangkat I2C yang terdeteksi</p>
-        <p style="margin: 4px 0 0 0; font-size: 0.74rem; color: var(--text-subtle);">Pastikan pin SDA & SCL terhubung dengan benar dan modul mendapatkan daya (3.3V/5V).</p>
+      <div class="empty-state-card">
+        <span>Tidak ada perangkat I2C yang terdeteksi. Pastikan kabel SDA & SCL terpasang kencang.</span>
       </div>
     `;
     return;
@@ -1967,19 +1988,18 @@ function renderI2cScanResults(devices = []) {
     card.className = 'i2c-device-card';
     card.innerHTML = `
       <div class="i2c-device-left">
-        <span class="i2c-addr-badge">${escapeHtml(d.address)}</span>
+        <span class="i2c-addr-badge">${escapeHtml(d.hex || d.address)}</span>
         <div class="i2c-dev-info">
           <span class="i2c-dev-name">${escapeHtml(d.name)}</span>
-          <span class="i2c-dev-category">${escapeHtml(d.category)}</span>
+          <span class="i2c-dev-category">${escapeHtml(d.category || 'Sensor I2C')}</span>
         </div>
       </div>
-      <button type="button" class="btn-add-i2c-quick" data-addr="${d.address}" data-name="${escapeHtml(d.name)}">
-        + Tambah Sensor Ini
+      <button type="button" class="btn-add-i2c-quick">
+        + Pasang Modul Ini
       </button>
     `;
 
-    const btnAdd = card.querySelector('.btn-add-i2c-quick');
-    btnAdd.addEventListener('click', () => {
+    card.querySelector('.btn-add-i2c-quick').addEventListener('click', () => {
       quickAddI2cSensor(d);
     });
 
@@ -1987,279 +2007,174 @@ function renderI2cScanResults(devices = []) {
   });
 }
 
-// Tambah Cepat Sensor I2C ke Dashboard
-async function quickAddI2cSensor(deviceInfo) {
+async function quickAddI2cSensor(d) {
   if (!activeDeviceId) return;
-
-  const addr = deviceInfo.address || '0x00';
-  const name = deviceInfo.name || 'Sensor I2C';
-  const numAddr = typeof addr === 'number' ? addr : parseInt(addr, 16);
-  const hexStr = !isNaN(numAddr) ? `0x${numAddr.toString(16)}` : addr;
 
   let driver = 'bmp280';
   let unit = '°C';
+  const name = d.name || 'Sensor I2C';
 
-  if (name.includes('BMP') || name.includes('BME') || numAddr === 0x76 || numAddr === 0x77) {
+  if (name.includes('BMP') || name.includes('BME')) {
     driver = 'bmp280';
     unit = '°C';
-  } else if (name.includes('BH1750') || numAddr === 0x23 || numAddr === 0x5c) {
+  } else if (name.includes('BH1750')) {
     driver = 'bh1750';
     unit = 'Lux';
-  } else if (name.includes('SHT') || numAddr === 0x44 || numAddr === 0x45) {
+  } else if (name.includes('SHT')) {
     driver = 'sht30';
     unit = '°C';
-  } else if (name.includes('AHT') || numAddr === 0x38) {
+  } else if (name.includes('AHT')) {
     driver = 'aht10';
     unit = '°C';
-  } else if (name.includes('ADS') || numAddr === 0x48 || numAddr === 0x49) {
-    driver = 'analog';
-    unit = 'V';
   }
 
-  const compId = `i2c_${driver}_${hexStr.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}`;
-
-  const payload = {
-    id: compId,
-    componentId: compId,
+  const compData = {
+    id: `${driver}_${d.address || 'i2c'}`,
     name: name,
     type: 'sensor',
     driver: driver,
-    pin: -1,
-    i2cAddr: numAddr,
     unit: unit,
-    readIntervalMs: 5000,
-    config: { address: addr, i2cAddr: numAddr }
+    access: 'r',
+    pin: -1,
+    interval: 5000
   };
 
   try {
-    const res = await fetch(`/api/devices/${activeDeviceId}/components`, {
+    const res = await apiRequest(`/api/devices/${activeDeviceId}/components`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(compData)
     });
-    const data = await res.json();
-    if (data.success) {
-      showToast(`✅ Modul I2C "${name}" berhasil ditambahkan ke Dashboard!`);
-      if (data.data) {
-        appDevices[activeDeviceId] = data.data;
-      }
+    if (res && res.success) {
+      showToast(`Sensor ${name} berhasil dipasang!`);
+      closePinManager();
       renderDashboard();
-      switchPinTab('tabListPins');
-    } else {
-      showToast(data.message || 'Gagal menambahkan modul');
     }
   } catch (err) {
-    showToast('Gagal menghubungi server');
+    showToast('Gagal memasang sensor I2C', 'error');
   }
 }
 
-// Render Sensor Dinamis di Dashboard Utama Tab Kontrol
-function renderComponentsSection(dev) {
-  if (!componentsGrid) return;
+// -------------------------------------------------------------
+// TAB 5: TOOLS - SUB-TABS & REMOTE OTA MODULE
+// -------------------------------------------------------------
+function switchToolsSubTab(tab) {
+  const serialBtn = document.getElementById('subTabSerialBtn');
+  const flasherBtn = document.getElementById('subTabFlasherBtn');
+  const otaBtn = document.getElementById('subTabOtaBtn');
 
-  if (!dev) {
-    componentsGrid.innerHTML = '';
+  const serialView = document.getElementById('subViewSerial');
+  const flasherView = document.getElementById('subViewFlasher');
+  const otaView = document.getElementById('subViewOta');
+
+  [serialBtn, flasherBtn, otaBtn].forEach(b => b && b.classList.remove('active'));
+  [serialView, flasherView, otaView].forEach(v => v && v.classList.add('hidden'));
+
+  if (tab === 'serial') {
+    if (serialBtn) serialBtn.classList.add('active');
+    if (serialView) serialView.classList.remove('hidden');
+  } else if (tab === 'flasher') {
+    if (flasherBtn) flasherBtn.classList.add('active');
+    if (flasherView) flasherView.classList.remove('hidden');
+  } else if (tab === 'ota') {
+    if (otaBtn) otaBtn.classList.add('active');
+    if (otaView) otaView.classList.remove('hidden');
+    loadServerFirmwaresForOta();
+    populateOtaDevices();
+  }
+}
+document.getElementById('subTabSerialBtn')?.addEventListener('click', () => switchToolsSubTab('serial'));
+document.getElementById('subTabFlasherBtn')?.addEventListener('click', () => switchToolsSubTab('flasher'));
+if (typeof subTabOtaBtn !== 'undefined' && subTabOtaBtn) subTabOtaBtn.addEventListener('click', () => switchToolsSubTab('ota'));
+
+function populateOtaDevices() {
+  if (!otaTargetDevice) return;
+  otaTargetDevice.innerHTML = '';
+  const devs = Object.values(appDevices);
+  if (devs.length === 0) {
+    otaTargetDevice.innerHTML = '<option value="">Tidak ada perangkat terdaftar</option>';
     return;
   }
-
-  // Filter komponen agar switch relay_1 s/d relay_4 tidak dobel dengan relaysGrid
-  const comps = (dev.components || []).filter(c => !(c.type === 'switch' && /^relay_\d+$/i.test(c.id)));
-
-  if (comps.length === 0) {
-    componentsGrid.innerHTML = `
-      <div style="grid-column: 1 / -1; padding: 22px; text-align: center; color: var(--text-subtle); background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 12px;">
-        <div style="font-size: 1.6rem; margin-bottom: 6px;">🔌</div>
-        <p style="margin: 0; font-size: 0.82rem; font-weight: 600; color: var(--text-main);">Belum ada sensor atau modul dinamis pada perangkat ini</p>
-        <p style="margin: 4px 0 12px 0; font-size: 0.74rem;">Pasang DHT, DS18B20, sensor analog, PIR atau modul I2C dan kelola langsung dari sini.</p>
-        <button type="button" class="btn-manage-pins" onclick="openPinManager('tabAddPin')" style="display:inline-flex;">
-          ➕ Atur Pin & Sensor Sekarang
-        </button>
-      </div>
-    `;
-    return;
-  }
-
-  componentsGrid.innerHTML = '';
-  comps.forEach(c => {
-    const card = document.createElement('div');
-    card.className = 'component-widget-card';
-    card.id = `comp-widget-${c.id}`;
-
-    const driver = c.driver || c.type || '';
-    let icon = '📊';
-    if (driver === 'switch') icon = '🔌';
-    else if (driver === 'dimmer' || c.type === 'dimmer') icon = '💡';
-    else if (driver === 'digital_in' || driver === 'indicator') icon = '🚨';
-    else if (driver.startsWith('dht') || driver === 'ds18b20') icon = '🌡️';
-    else if (driver === 'bmp280') icon = '🌡️';
-    else if (driver === 'bh1750') icon = '☀️';
-    else if (driver === 'sht30' || driver === 'aht10') icon = '🌡️';
-    else if (driver === 'analog') icon = '📈';
-    else if (driver === 'i2c') icon = '💡';
-
-    let pinTag = (c.pin >= 0) ? `Pin ${c.pin}` : 'I2C/Virtual';
-    if (c.pin === 17) pinTag = 'Pin A0';
-    else if (c.pin === 14) pinTag = 'Pin D5';
-    else if (c.pin === 12) pinTag = 'Pin D6';
-    else if (c.pin === 13) pinTag = 'Pin D7';
-
-    let bodyHtml = '';
-    if (c.type === 'switch') {
-      const isOn = c.value === 'true' || c.value === '1';
-      bodyHtml = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin: 8px 0;">
-          <span style="font-size: 0.85rem; font-weight: 700; color: ${isOn ? 'var(--primary-glow)' : 'var(--text-muted)'};">
-            ${isOn ? 'MENYALA' : 'MATI'}
-          </span>
-          <label class="switch-control">
-            <input type="checkbox" ${isOn ? 'checked' : ''} data-comp-id="${c.id}">
-            <span class="slider"></span>
-          </label>
-        </div>
-      `;
-    } else if (c.type === 'dimmer' || driver === 'dimmer') {
-      const dimVal = Math.min(Math.max(parseInt(c.value) || 0, 0), 100);
-      bodyHtml = `
-        <div style="margin: 10px 0;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Kecerahan / PWM:</span>
-            <span id="dim-val-text-${c.id}" style="font-size: 0.9rem; font-weight: 700; color: var(--primary-glow);">${dimVal}%</span>
-          </div>
-          <input type="range" class="dimmer-range-slider" min="0" max="100" value="${dimVal}" data-comp-id="${c.id}" style="width: 100%; cursor: pointer; accent-color: var(--primary, #3b82f6);">
-        </div>
-      `;
-    } else if (c.type === 'indicator' || driver === 'digital_in') {
-      const isActive = c.value === '1' || c.value === 'true';
-      bodyHtml = `
-        <div style="margin: 8px 0;">
-          <span class="indicator-pill ${isActive ? 'active' : 'inactive'}">
-            ${isActive ? '🚨 Terdeteksi' : '✅ Aman / Normal'}
-          </span>
-        </div>
-      `;
-    } else {
-      // Sensor angka / nilai
-      bodyHtml = `
-        <div class="comp-val-display">
-          <span class="comp-val-number">${escapeHtml(c.value || '0')}</span>
-          <span class="comp-val-unit">${escapeHtml(c.unit || '')}</span>
-        </div>
-      `;
-    }
-
-    card.innerHTML = `
-      <div class="comp-header">
-        <div class="comp-meta">
-          <span class="comp-icon">${icon}</span>
-          <div class="comp-title-wrap">
-            <span class="comp-title">${escapeHtml(c.name || c.id)}</span>
-            <span class="comp-pin-tag">${pinTag}</span>
-          </div>
-        </div>
-      </div>
-      ${bodyHtml}
-      <div class="comp-footer">
-        <span>Tipe: ${driver.toUpperCase()}</span>
-        <button type="button" class="btn-icon-xs" title="Kelola Komponen" onclick="openPinManager('tabListPins')">
-          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-      </div>
-    `;
-
-    // Handler jika komponen bertipe switch
-    const switchInput = card.querySelector('input[type="checkbox"]');
-    if (switchInput) {
-      switchInput.addEventListener('change', (e) => {
-        controlModularSwitch(c.id, e.target.checked);
-      });
-    }
-
-    // Handler jika komponen bertipe dimmer
-    const dimmerInput = card.querySelector('input.dimmer-range-slider');
-    if (dimmerInput) {
-      dimmerInput.addEventListener('input', (e) => {
-        const valText = card.querySelector(`#dim-val-text-${c.id}`);
-        if (valText) valText.textContent = `${e.target.value}%`;
-      });
-      dimmerInput.addEventListener('change', (e) => {
-        controlModularDimmer(c.id, parseInt(e.target.value) || 0);
-      });
-    }
-
-    componentsGrid.appendChild(card);
+  devs.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = `${d.name || d.deviceId} (${d.isOnline ? 'Online' : 'Offline'})`;
+    if (d.deviceId === activeDeviceId) opt.selected = true;
+    otaTargetDevice.appendChild(opt);
   });
 }
 
-// Kontrol Komponen Switch Modular
-function controlModularSwitch(componentId, state) {
-  if (navigator.vibrate) navigator.vibrate(30);
-
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      action: 'set_component',
-      target: activeDeviceId,
-      componentId: componentId,
-      value: state ? 'true' : 'false',
-      duration: 0
-    }));
-  } else {
-    // REST API fallback
-    fetch(`/api/devices/${activeDeviceId}/components/${encodeURIComponent(componentId)}/control`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({ value: state ? 'true' : 'false' })
-    }).catch(() => showToast('Gagal mengirim perintah'));
-  }
+async function loadServerFirmwaresForOta() {
+  if (!otaFirmwareSelect) return;
+  try {
+    const res = await apiRequest('/api/firmwares');
+    if (res && res.success && Array.isArray(res.data)) {
+      otaFirmwareSelect.innerHTML = '<option value="">-- Pilih File Firmware di Server --</option>';
+      res.data.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.filename;
+        opt.textContent = `${f.filename} (${f.sizeFormatted})`;
+        otaFirmwareSelect.appendChild(opt);
+      });
+    }
+  } catch (e) {}
 }
 
-// Kontrol Komponen Dimmer / PWM Modular
-let dimmerDebounceTimers = {};
-function controlModularDimmer(componentId, value) {
-  if (navigator.vibrate) navigator.vibrate(20);
+if (btnStartOta) {
+  btnStartOta.addEventListener('click', async () => {
+    const targetDev = otaTargetDevice ? otaTargetDevice.value : activeDeviceId;
+    if (!targetDev) {
+      showToast('Pilih perangkat target terlebih dahulu', 'warning');
+      return;
+    }
+    const filename = otaFirmwareSelect ? otaFirmwareSelect.value : '';
+    const customUrl = otaCustomUrl ? otaCustomUrl.value.trim() : '';
+    if (!filename && !customUrl) {
+      showToast('Pilih file firmware atau isi URL firmware', 'warning');
+      return;
+    }
 
-  const numVal = Math.min(Math.max(parseInt(value) || 0, 0), 100);
+    try {
+      if (otaLiveProgressContainer) otaLiveProgressContainer.classList.remove('hidden');
+      if (otaProgressPercent) otaProgressPercent.textContent = '0%';
+      if (otaProgressBar) otaProgressBar.style.width = '0%';
+      if (otaProgressLabel) otaProgressLabel.textContent = `Mengirim perintah update ke ${targetDev}...`;
 
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      action: 'set_component',
-      target: activeDeviceId,
-      componentId: componentId,
-      value: numVal,
-      duration: 0
-    }));
-  } else {
-    clearTimeout(dimmerDebounceTimers[componentId]);
-    dimmerDebounceTimers[componentId] = setTimeout(() => {
-      fetch(`/api/devices/${activeDeviceId}/components/${encodeURIComponent(componentId)}/control`, {
+      const res = await apiRequest(`/api/devices/${targetDev}/ota`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ value: numVal })
-      }).catch(() => showToast('Gagal mengirim perintah dimmer'));
-    }, 150);
-  }
+        body: JSON.stringify({ filename, url: customUrl })
+      });
+      if (res && res.success) {
+        showToast(`Instruksi OTA dikirim ke ${targetDev}`);
+      } else {
+        showToast(res ? res.message : 'Gagal mengirim instruksi OTA', 'error');
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
 }
 
-// Handler Laporan Progres OTA Update
 function handleOtaProgressUpdate(msg) {
   const percent = msg.percent || 0;
+  if (otaLiveProgressContainer) otaLiveProgressContainer.classList.remove('hidden');
+  if (otaProgressPercent) otaProgressPercent.textContent = `${percent}%`;
+  if (otaProgressBar) otaProgressBar.style.width = `${percent}%`;
+  if (otaProgressLabel) otaProgressLabel.textContent = `Node ${msg.deviceId} sedang mengunduh: ${percent}%`;
+
+  if (otaByteDetails && msg.current && msg.total) {
+    const curKb = (msg.current / 1024).toFixed(1);
+    const totKb = (msg.total / 1024).toFixed(1);
+    otaByteDetails.textContent = `${curKb} / ${totKb} KB`;
+  }
+
   if (percent >= 100) {
-    showToast(`✅ Unduh firmware selesai (100%)! ${msg.deviceId} sedang reboot...`);
-  } else {
-    showToast(`🔄 OTA Update ${msg.deviceId}: ${percent}% (${Math.round((msg.current || 0) / 1024)} KB / ${Math.round((msg.total || 0) / 1024)} KB)`);
+    showToast(`🎉 Unduh firmware selesai (100%)! ${msg.deviceId} sedang me-reboot...`);
+    if (otaProgressLabel) otaProgressLabel.textContent = `OTA Selesai! ${msg.deviceId} sedang reboot...`;
   }
 }
+
+// Check auth session on startup
+checkAuthSession();
 
 // -------------------------------------------------------------
 // TAB 5: TOOLS — Web Serial Monitor & Web Flasher
@@ -2342,19 +2257,8 @@ let esptoolModule = null;
 
 // --- Tools Sub-tab Switcher ---
 if (subTabSerialBtn && subTabFlasherBtn) {
-  subTabSerialBtn.addEventListener('click', () => {
-    subTabSerialBtn.classList.add('active');
-    subTabFlasherBtn.classList.remove('active');
-    subViewSerial.classList.remove('hidden');
-    subViewFlasher.classList.add('hidden');
-  });
-
-  subTabFlasherBtn.addEventListener('click', () => {
-    subTabFlasherBtn.classList.add('active');
-    subTabSerialBtn.classList.remove('active');
-    subViewFlasher.classList.remove('hidden');
-    subViewSerial.classList.add('hidden');
-  });
+  subTabSerialBtn.addEventListener('click', () => switchToolsSubTab('serial'));
+  subTabFlasherBtn.addEventListener('click', () => switchToolsSubTab('flasher'));
 }
 
 // =============================================================

@@ -36,6 +36,9 @@ class DeviceManager {
         deviceId: deviceId,
         name: `Perangkat (${deviceId})`,
         type: info.chip || 'modular-iot',
+        chip: info.chip || '',
+        firmware: info.firmware || '',
+        ip: info.ip || (ws && ws._socket ? ws._socket.remoteAddress : '') || '',
         isOnline: true,
         dynamicPins: isDynamic,
         uptime: info.uptime || 0,
@@ -51,6 +54,9 @@ class DeviceManager {
       this.devices[deviceId].dynamicPins = isDynamic;
       this.devices[deviceId].uptime = info.uptime || this.devices[deviceId].uptime;
       this.devices[deviceId].rssi = info.rssi || this.devices[deviceId].rssi;
+      this.devices[deviceId].chip = info.chip || this.devices[deviceId].chip || '';
+      this.devices[deviceId].firmware = info.firmware || this.devices[deviceId].firmware || '';
+      this.devices[deviceId].ip = info.ip || (ws && ws._socket ? ws._socket.remoteAddress : '') || this.devices[deviceId].ip || '';
       this.devices[deviceId].lastSeen = now;
       db.upsertDevice(this.devices[deviceId]);
     }
@@ -373,15 +379,46 @@ class DeviceManager {
     return this.i2cScans[deviceId] || null;
   }
 
+  addDevice(data) {
+    const deviceId = data.deviceId;
+    const name = data.name || `Perangkat (${deviceId})`;
+    const type = data.type || 'modular-iot';
+    const dev = db.preRegisterDevice(deviceId, name, type);
+    this.devices[deviceId] = dev;
+    db.addLog(deviceId, 'device_added', `Perangkat ${deviceId} ditambahkan secara manual`);
+    return dev;
+  }
+
   deleteDevice(deviceId) {
+    const socket = this.getSocket(deviceId);
+    if (socket) {
+      try {
+        socket.close(4004, 'Device Deleted');
+      } catch (e) {}
+      this.sockets.delete(deviceId);
+    }
+
     if (this.devices[deviceId]) {
       delete this.devices[deviceId];
-      this.sockets.delete(deviceId);
-      db.deleteDevice(deviceId);
-      db.addLog(deviceId, 'delete_device', `Perangkat ${deviceId} dihapus dari sistem`);
-      return true;
     }
-    return false;
+    
+    const success = db.deleteDevice(deviceId);
+    db.addLog(deviceId, 'delete_device', `Perangkat ${deviceId} dihapus dari sistem`);
+    return success;
+  }
+
+  triggerOTA(deviceId, binUrl) {
+    const socket = this.getSocket(deviceId);
+    if (socket && socket.readyState === 1) {
+      socket.send(JSON.stringify({
+        action: 'ota_update',
+        url: binUrl
+      }));
+      db.addLog(deviceId, 'ota_triggered', `Instruksi OTA Update dikirim: ${binUrl}`);
+      console.log(`[OTA] Instruksi OTA dikirim ke ${deviceId}: ${binUrl}`);
+      return { success: true, message: `Instruksi OTA update dikirim ke ${deviceId}` };
+    }
+    return { success: false, message: `Perangkat ${deviceId} sedang offline` };
   }
 
   // Watchdog: Cek jika ada perangkat yang mendadak mati (misal mati lampu / dicabut)

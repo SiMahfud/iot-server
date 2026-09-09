@@ -17,6 +17,7 @@ class DatabaseManager {
     this.db = new Database(DB_PATH);
     this.initPragmas();
     this.initTables();
+    this.applyMigrations();
     this.autoMigrateFromJson();
   }
 
@@ -103,6 +104,29 @@ class DatabaseManager {
 
       CREATE INDEX IF NOT EXISTS idx_telemetry ON telemetry_history(deviceId, componentId, timestamp);
     `);
+  }
+
+  applyMigrations() {
+    try {
+      const scheduleCols = this.db.prepare("PRAGMA table_info(schedules)").all().map(c => c.name);
+      if (!scheduleCols.includes('componentId')) {
+        this.db.exec("ALTER TABLE schedules ADD COLUMN componentId TEXT;");
+        console.log('[MIGRATION] Kolom componentId berhasil ditambahkan ke tabel schedules');
+      }
+
+      const deviceCols = this.db.prepare("PRAGMA table_info(devices)").all().map(c => c.name);
+      if (!deviceCols.includes('chip')) {
+        this.db.exec("ALTER TABLE devices ADD COLUMN chip TEXT DEFAULT '';");
+      }
+      if (!deviceCols.includes('firmware')) {
+        this.db.exec("ALTER TABLE devices ADD COLUMN firmware TEXT DEFAULT '';");
+      }
+      if (!deviceCols.includes('ip')) {
+        this.db.exec("ALTER TABLE devices ADD COLUMN ip TEXT DEFAULT '';");
+      }
+    } catch (e) {
+      console.warn('[MIGRATION] Peringatan saat migrasi kolom:', e.message);
+    }
   }
 
   autoMigrateFromJson() {
@@ -273,6 +297,9 @@ class DatabaseManager {
         deviceId: d.deviceId,
         name: d.name,
         type: d.type,
+        chip: d.chip || '',
+        firmware: d.firmware || '',
+        ip: d.ip || '',
         isOnline: Boolean(d.isOnline),
         uptime: d.uptime,
         rssi: d.rssi,
@@ -295,6 +322,9 @@ class DatabaseManager {
       deviceId: dev.deviceId,
       name: dev.name,
       type: dev.type,
+      chip: dev.chip || '',
+      firmware: dev.firmware || '',
+      ip: dev.ip || '',
       isOnline: Boolean(dev.isOnline),
       uptime: dev.uptime,
       rssi: dev.rssi,
@@ -317,25 +347,50 @@ class DatabaseManager {
 
   upsertDevice(dev) {
     const stmt = this.db.prepare(`
-      INSERT INTO devices (deviceId, name, type, isOnline, uptime, rssi, lastSeen)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO devices (deviceId, name, type, isOnline, uptime, rssi, lastSeen, chip, firmware, ip)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(deviceId) DO UPDATE SET
-        name = excluded.name,
-        type = excluded.type,
+        name = COALESCE(excluded.name, name),
+        type = COALESCE(excluded.type, type),
         isOnline = excluded.isOnline,
         uptime = excluded.uptime,
         rssi = excluded.rssi,
-        lastSeen = excluded.lastSeen
+        lastSeen = excluded.lastSeen,
+        chip = COALESCE(excluded.chip, chip),
+        firmware = COALESCE(excluded.firmware, firmware),
+        ip = COALESCE(excluded.ip, ip)
     `);
     stmt.run(
       dev.deviceId,
       dev.name,
-      dev.type || '4-relay',
+      dev.type || 'modular-iot',
       dev.isOnline ? 1 : 0,
       dev.uptime || 0,
       dev.rssi || 0,
-      dev.lastSeen || null
+      dev.lastSeen || null,
+      dev.chip || '',
+      dev.firmware || '',
+      dev.ip || ''
     );
+  }
+
+  preRegisterDevice(deviceId, name, type = 'modular-iot') {
+    const existing = this.getDevice(deviceId);
+    if (existing) return existing;
+    const now = new Date().toISOString();
+    this.upsertDevice({
+      deviceId,
+      name: name || `Perangkat (${deviceId})`,
+      type: type || 'modular-iot',
+      isOnline: 0,
+      uptime: 0,
+      rssi: 0,
+      lastSeen: now,
+      chip: '',
+      firmware: '',
+      ip: ''
+    });
+    return this.getDevice(deviceId);
   }
 
   upsertRelay(deviceId, channel, name, state) {
@@ -516,6 +571,7 @@ class DatabaseManager {
     return rows.map(r => ({
       id: r.id,
       deviceId: r.deviceId,
+      componentId: r.componentId || (r.channel ? `relay_${r.channel}` : null),
       channel: r.channel,
       action: r.action,
       time: r.time,
@@ -533,6 +589,7 @@ class DatabaseManager {
     return {
       id: r.id,
       deviceId: r.deviceId,
+      componentId: r.componentId || (r.channel ? `relay_${r.channel}` : null),
       channel: r.channel,
       action: r.action,
       time: r.time,
@@ -545,20 +602,22 @@ class DatabaseManager {
   }
 
   addSchedule(s) {
+    const componentId = s.componentId || (s.channel ? `relay_${s.channel}` : null);
     const stmt = this.db.prepare(`
-      INSERT INTO schedules (id, deviceId, channel, action, time, days, duration, enabled, label, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       s.id,
       s.deviceId,
-      s.channel,
+      componentId,
+      s.channel || 0,
       s.action || 'on',
       s.time,
       JSON.stringify(s.days || []),
       s.duration || 0,
       s.enabled !== false ? 1 : 0,
-      s.label || `Jadwal Relay #${s.channel}`,
+      s.label || (s.componentId ? `Jadwal ${s.componentId}` : `Jadwal Relay #${s.channel}`),
       s.createdAt || new Date().toISOString()
     );
     const created = this.getScheduleById(s.id);
@@ -571,10 +630,14 @@ class DatabaseManager {
     if (!current) return null;
 
     const merged = { ...current, ...fields };
+    if (!merged.componentId && merged.channel) {
+      merged.componentId = `relay_${merged.channel}`;
+    }
 
     this.db.prepare(`
       UPDATE schedules SET
         deviceId = ?,
+        componentId = ?,
         channel = ?,
         action = ?,
         time = ?,
@@ -585,12 +648,13 @@ class DatabaseManager {
       WHERE id = ?
     `).run(
       merged.deviceId,
-      merged.channel,
+      merged.componentId || null,
+      merged.channel || 0,
       merged.action,
       merged.time,
       JSON.stringify(merged.days || []),
-      merged.duration,
-      merged.enabled ? 1 : 0,
+      merged.duration || 0,
+      merged.enabled !== false ? 1 : 0,
       merged.label,
       id
     );

@@ -67,16 +67,18 @@ class SchedulerManager {
   // ----- CRUD Operations -----
 
   addSchedule(data) {
+    const componentId = data.componentId || (data.channel ? `relay_${data.channel}` : null);
     const schedule = {
       id: this.generateId(),
       deviceId: data.deviceId,
-      channel: parseInt(data.channel),
-      action: data.action || 'on',          // 'on' | 'off' | 'toggle'
+      componentId: componentId,
+      channel: data.channel !== undefined ? parseInt(data.channel) : (componentId && /^relay_\d+$/i.test(componentId) ? parseInt(componentId.replace(/\D/g, '')) : 0),
+      action: data.action || 'on',          // 'on' | 'off' | 'toggle' | 'value'
       time: data.time,                       // 'HH:MM'
       days: Array.isArray(data.days) ? data.days : [], // [0-6], kosong = setiap hari
       duration: data.duration ? parseInt(data.duration) : 0, // durasi nyala dalam menit (opsional)
       enabled: data.enabled !== false,
-      label: data.label || `Jadwal Relay #${data.channel}`,
+      label: data.label || (componentId ? `Jadwal ${componentId}` : `Jadwal Relay #${data.channel || 1}`),
       createdAt: new Date().toISOString()
     };
 
@@ -211,16 +213,24 @@ class SchedulerManager {
       return;
     }
 
-    // Tentukan state berdasarkan action
-    let state;
+    // Tentukan state berdasarkan action dan component
+    const compId = schedule.componentId || (schedule.channel ? `relay_${schedule.channel}` : null);
+    const dev = this._deviceManager.getAll()[schedule.deviceId];
+
+    let state = true;
     if (schedule.action === 'on') {
       state = true;
     } else if (schedule.action === 'off') {
       state = false;
     } else if (schedule.action === 'toggle') {
-      // Cek state relay saat ini dari deviceManager
-      const dev = this._deviceManager.getAll()[schedule.deviceId];
-      if (dev && dev.relays) {
+      if (dev && Array.isArray(dev.components)) {
+        const c = dev.components.find(x => x.id === compId || x.componentId === compId);
+        if (c) {
+          state = !(c.value === 'true' || c.value === true || c.value === '1');
+        } else {
+          state = true;
+        }
+      } else if (dev && dev.relays) {
         const relay = dev.relays.find(r => r.channel === schedule.channel);
         state = relay ? !relay.state : true;
       } else {
@@ -228,24 +238,35 @@ class SchedulerManager {
       }
     }
 
-    // Kirim perintah ke Wemos
-    const payload = {
-      action: 'set_relay',
-      target: schedule.deviceId,
-      channel: schedule.channel,
-      state: state
-    };
-
-    // Jika aksi ON dan memiliki durasi, kirim parameter duration (dalam detik) ke Wemos
-    if (state === true && schedule.duration && schedule.duration > 0) {
-      payload.duration = schedule.duration * 60;
+    // Kirim perintah ke Hardware
+    let payload;
+    if (compId) {
+      payload = {
+        action: 'set_component',
+        target: schedule.deviceId,
+        componentId: compId,
+        value: state
+      };
+      if (state === true && schedule.duration && schedule.duration > 0) {
+        payload.duration = schedule.duration * 60;
+      }
+    } else {
+      payload = {
+        action: 'set_relay',
+        target: schedule.deviceId,
+        channel: schedule.channel,
+        state: state
+      };
+      if (state === true && schedule.duration && schedule.duration > 0) {
+        payload.duration = schedule.duration * 60;
+      }
     }
 
     targetSocket.send(JSON.stringify(payload));
 
     const durationInfo = (state === true && schedule.duration > 0) ? ` selama ${schedule.duration} menit` : '';
     const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    console.log(`[SCHEDULER] ⏰ Jadwal "${schedule.label}" dijalankan → Relay #${schedule.channel} ${state ? 'ON' : 'OFF'}${durationInfo} [${now}]`);
+    console.log(`[SCHEDULER] ⏰ Jadwal "${schedule.label}" dijalankan -> ${compId || `Relay #${schedule.channel}`} ${state ? 'ON' : 'OFF'}${durationInfo} [${now}]`);
 
     // Catat ke log aktivitas SQLite
     db.addLog(schedule.deviceId, 'schedule_executed', `Jadwal "${schedule.label}" dieksekusi: Saklar #${schedule.channel} -> ${state ? 'ON' : 'OFF'}${durationInfo}`);
