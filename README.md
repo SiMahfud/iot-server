@@ -48,20 +48,20 @@ Server ini menyediakan komunikasi **WebSocket dua arah real-time**, dashboard we
 ## 🏗️ Arsitektur Sistem
 
 ```mermaid
-graph TD
-    subgraph Hardware Layer
+flowchart TD
+    subgraph HardwareLayer ["Hardware Layer"]
         ESP["ESP8266 / ESP32<br>(Library: AgyGatewayClient)"]
         Sensors["Sensor & Aktuator<br>(Relay, Dimmer, I2C, 1-Wire)"]
         Sensors <--> ESP
     end
 
-    subgraph Server Gateway (AgyGatewayServer)
+    subgraph ServerGateway ["Server Gateway (AgyGatewayServer)"]
         WS["Native WebSocket Server (/ws)"]
         Express["Express.js REST API"]
         Auth["AuthManager (HMAC Session Tokens)"]
         DevMgr["Device & Pin Manager"]
         Sched["Cron Scheduler Manager"]
-        DB[(SQLite WAL Database<br>iot.db)]
+        DB[("SQLite WAL Database<br>iot.db")]
         
         WS <--> Auth
         WS <--> DevMgr
@@ -71,13 +71,13 @@ graph TD
         Sched <--> DB
     end
 
-    subgraph Client Layer
+    subgraph ClientLayer ["Client Layer"]
         Web["PWA Web Dashboard<br>(Browser Smartphone / PC)"]
     end
 
-    ESP <== "WebSocket (JSON Delta / auth_ok)" ==> WS
-    Web <== "WebSocket (Live Updates)" ==> WS
-    Web <== "HTTP / REST API" ==> Express
+    ESP <-->|"WebSocket (JSON Delta / auth_ok)"| WS
+    Web <-->|"WebSocket (Live Updates)"| WS
+    Web <-->|"HTTP / REST API"| Express
 ```
 
 ---
