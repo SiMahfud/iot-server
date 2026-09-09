@@ -155,12 +155,17 @@ module.exports = {
     }
   },
 
-  importSchedulesFromJson() {
+  importSchedulesFromJson(options = {}) {
+    const { allowPurge = false } = options;
     try {
       if (!fs.existsSync(SCHEDULES_JSON)) return { success: false, message: 'File schedules.json tidak ditemukan' };
       const raw = fs.readFileSync(SCHEDULES_JSON, 'utf8');
       const parsed = JSON.parse(raw);
       const schedules = Array.isArray(parsed.schedules) ? parsed.schedules : [];
+
+      if (schedules.length === 0 && !allowPurge) {
+        return { success: true, count: 0, message: 'File schedules.json kosong, jadwal di database tetap dipertahankan' };
+      }
 
       const insertOrUpdate = this.db.prepare(`
         INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, targetValue, createdAt)
@@ -181,11 +186,13 @@ module.exports = {
       const jsonIds = schedules.map(s => s.id).filter(Boolean);
 
       const importTx = this.db.transaction(() => {
-        if (jsonIds.length > 0) {
-          const placeholders = jsonIds.map(() => '?').join(',');
-          this.db.prepare(`DELETE FROM schedules WHERE id NOT IN (${placeholders})`).run(...jsonIds);
-        } else {
-          this.db.prepare('DELETE FROM schedules').run();
+        if (allowPurge) {
+          if (jsonIds.length > 0) {
+            const placeholders = jsonIds.map(() => '?').join(',');
+            this.db.prepare(`DELETE FROM schedules WHERE id NOT IN (${placeholders})`).run(...jsonIds);
+          } else {
+            this.db.prepare('DELETE FROM schedules').run();
+          }
         }
 
         for (const s of schedules) {

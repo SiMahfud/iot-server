@@ -106,16 +106,18 @@ class AutomationEngine {
       } else if (op === '<=') {
         isConditionMet = isNum && targetThreshold !== null && numVal <= targetThreshold;
       } else if (op === '==') {
-        if (isNum && targetThreshold !== null) {
-          isConditionMet = Math.abs(numVal - targetThreshold) < 0.001;
+        const isThreshNum = targetThreshold !== null && targetThreshold !== undefined && !isNaN(parseFloat(targetThreshold));
+        if (isNum && isThreshNum) {
+          isConditionMet = Math.abs(numVal - parseFloat(targetThreshold)) < 0.001;
         } else {
-          isConditionMet = String(value).toLowerCase() === String(targetThreshold || '').toLowerCase();
+          isConditionMet = String(value).trim().toLowerCase() === String(targetThreshold !== null && targetThreshold !== undefined ? targetThreshold : '').trim().toLowerCase();
         }
       } else if (op === '!=') {
-        if (isNum && targetThreshold !== null) {
-          isConditionMet = Math.abs(numVal - targetThreshold) >= 0.001;
+        const isThreshNum = targetThreshold !== null && targetThreshold !== undefined && !isNaN(parseFloat(targetThreshold));
+        if (isNum && isThreshNum) {
+          isConditionMet = Math.abs(numVal - parseFloat(targetThreshold)) >= 0.001;
         } else {
-          isConditionMet = String(value).toLowerCase() !== String(targetThreshold || '').toLowerCase();
+          isConditionMet = String(value).trim().toLowerCase() !== String(targetThreshold !== null && targetThreshold !== undefined ? targetThreshold : '').trim().toLowerCase();
         }
       } else if (op === 'motion') {
         // PIR Sensor atau Digital IN Triggered (HIGH / true / 1)

@@ -143,9 +143,8 @@ function validateSession() {
   })
   .catch((err) => {
     console.warn('[AUTH] Sesi tidak valid atau server tidak merespons:', err.message);
-    showLoginScreen(false);
-    initWebSocket();
-    loadInitialData();
+    state.setToken(null);
+    showLoginScreen(true);
   });
 }
 

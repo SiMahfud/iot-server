@@ -1,5 +1,5 @@
 // Service Worker untuk PWA Offline Caching
-const CACHE_NAME = 'agygateway-v4.8';
+const CACHE_NAME = 'agygateway-v4.9';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -71,7 +71,7 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(event.request);
+        return caches.match(event.request, { ignoreSearch: true });
       })
   );
 });

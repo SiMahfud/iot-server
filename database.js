@@ -41,7 +41,8 @@ class DatabaseManager {
         isOnline INTEGER DEFAULT 0,
         uptime INTEGER DEFAULT 0,
         rssi INTEGER DEFAULT 0,
-        lastSeen TEXT
+        lastSeen TEXT,
+        dynamicPins INTEGER DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS relays (
@@ -153,8 +154,22 @@ class DatabaseManager {
       if (!deviceCols.includes('ip')) {
         this.db.exec("ALTER TABLE devices ADD COLUMN ip TEXT DEFAULT '';");
       }
+      if (!deviceCols.includes('dynamicPins')) {
+        this.db.exec("ALTER TABLE devices ADD COLUMN dynamicPins INTEGER DEFAULT 0;");
+        console.log('[MIGRATION] Kolom dynamicPins berhasil ditambahkan ke tabel devices');
+      }
     } catch (e) {
       console.warn('[MIGRATION] Peringatan saat migrasi kolom:', e.message);
+    }
+  }
+
+  checkpointWal() {
+    try {
+      const res = this.db.pragma('wal_checkpoint(TRUNCATE)');
+      return res;
+    } catch (e) {
+      console.warn('[SQLITE] Peringatan WAL checkpoint:', e.message);
+      return null;
     }
   }
 }

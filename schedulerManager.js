@@ -5,7 +5,15 @@
 
 const cron = require('node-cron');
 const crypto = require('crypto');
+const { WebSocket } = require('ws');
 const db = require('./database');
+
+let config;
+try {
+  config = require('./config.json');
+} catch {
+  config = require('./config.example.json');
+}
 
 class SchedulerManager {
   constructor() {
@@ -148,14 +156,15 @@ class SchedulerManager {
       return;
     }
 
+    const tz = config?.server?.timezone || 'Asia/Jakarta';
     const job = cron.schedule(cronExpr, () => {
       this.executeSchedule(schedule);
     }, {
-      timezone: 'Asia/Jakarta'
+      timezone: tz
     });
 
     this.jobs.set(schedule.id, job);
-    console.log(`[SCHEDULER] Job aktif: "${schedule.label}" → cron(${cronExpr})`);
+    console.log(`[SCHEDULER] Job aktif: "${schedule.label}" → cron(${cronExpr}) [${tz}]`);
   }
 
   stopJob(id) {
@@ -189,7 +198,6 @@ class SchedulerManager {
       return;
     }
 
-    const { WebSocket } = require('ws');
     const targetSocket = this._deviceManager.getSocket(schedule.deviceId);
 
     if (!targetSocket || targetSocket.readyState !== WebSocket.OPEN) {

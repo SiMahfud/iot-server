@@ -26,7 +26,8 @@ export function initWebSocket() {
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
+  const tokenParam = state.authToken ? `?token=${encodeURIComponent(state.authToken)}` : '';
+  const wsUrl = `${protocol}//${window.location.host}/ws${tokenParam}`;
 
   console.log(`[WS] Menghubungkan ke ${wsUrl}...`);
   const ws = new WebSocket(wsUrl);

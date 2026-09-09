@@ -49,6 +49,7 @@ module.exports = {
         firmware: d.firmware || '',
         ip: d.ip || '',
         isOnline: Boolean(d.isOnline),
+        dynamicPins: Boolean(d.dynamicPins),
         uptime: d.uptime,
         rssi: d.rssi,
         lastSeen: d.lastSeen,
@@ -74,6 +75,7 @@ module.exports = {
       firmware: dev.firmware || '',
       ip: dev.ip || '',
       isOnline: Boolean(dev.isOnline),
+      dynamicPins: Boolean(dev.dynamicPins),
       uptime: dev.uptime,
       rssi: dev.rssi,
       lastSeen: dev.lastSeen,
@@ -95,8 +97,8 @@ module.exports = {
 
   upsertDevice(dev) {
     const stmt = this.db.prepare(`
-      INSERT INTO devices (deviceId, name, type, isOnline, uptime, rssi, lastSeen, chip, firmware, ip)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO devices (deviceId, name, type, isOnline, uptime, rssi, lastSeen, chip, firmware, ip, dynamicPins)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(deviceId) DO UPDATE SET
         name = COALESCE(excluded.name, name),
         type = COALESCE(excluded.type, type),
@@ -106,7 +108,8 @@ module.exports = {
         lastSeen = excluded.lastSeen,
         chip = COALESCE(excluded.chip, chip),
         firmware = COALESCE(excluded.firmware, firmware),
-        ip = COALESCE(excluded.ip, ip)
+        ip = COALESCE(excluded.ip, ip),
+        dynamicPins = COALESCE(excluded.dynamicPins, dynamicPins)
     `);
     stmt.run(
       dev.deviceId,
@@ -118,7 +121,8 @@ module.exports = {
       dev.lastSeen || null,
       dev.chip || '',
       dev.firmware || '',
-      dev.ip || ''
+      dev.ip || '',
+      dev.dynamicPins ? 1 : 0
     );
   },
 

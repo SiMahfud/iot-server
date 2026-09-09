@@ -118,6 +118,9 @@ app.use((err, req, res, next) => {
 // WebSocket Handler dengan Autentikasi Ketat
 // -------------------------------------------------------------
 wss.on('connection', (ws, req) => {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+
   const clientIp = req.headers['cf-connecting-ip'] || (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress);
   console.log(`[WS] Koneksi baru masuk dari: ${clientIp}`);
 
@@ -478,6 +481,21 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+// Heartbeat interval untuk mendeteksi dan menutup koneksi socket zombie
+const wsHeartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    try { ws.ping(); } catch (e) {}
+  });
+}, 30000);
+
+wss.on('close', () => {
+  clearInterval(wsHeartbeatInterval);
+});
+
 // -------------------------------------------------------------
 // Jalankan Server
 // -------------------------------------------------------------
@@ -498,9 +516,15 @@ server.listen(PORT, () => {
         clearTimeout(watcherDebounce);
         watcherDebounce = setTimeout(() => {
           try {
+            if (!fs.existsSync(SCHEDULES_FILE)) return;
+            const content = fs.readFileSync(SCHEDULES_FILE, 'utf8');
+            const parsed = JSON.parse(content);
+            if (!parsed.schedules || parsed.schedules.length === 0) {
+              return;
+            }
             console.log('[WATCHER] Perubahan terdeteksi pada schedules.json. Memperbarui SQLite & Cron...');
-            const res = db.importSchedulesFromJson();
-            if (res.success) {
+            const res = db.importSchedulesFromJson({ allowPurge: false });
+            if (res.success && res.count > 0) {
               schedulerManager.reloadFromDb();
               broadcastToBrowsers({
                 type: 'SCHEDULES_UPDATE',
@@ -509,7 +533,7 @@ server.listen(PORT, () => {
               broadcastToBrowsers({
                 type: 'NOTIFICATION',
                 level: 'info',
-                message: '🔄 Jadwal otomatis disinkronkan dari file schedules.json'
+                message: `🔄 ${res.count} jadwal disinkronkan dari file schedules.json`
               });
             }
           } catch (e) {
@@ -519,6 +543,16 @@ server.listen(PORT, () => {
       }
     });
   }
+
+  // Checkpoint berkala SQLite WAL agar file iot.db-wal tidak membengkak
+  try {
+    db.checkpointWal();
+  } catch (e) {}
+  setInterval(() => {
+    try {
+      db.checkpointWal();
+    } catch (e) {}
+  }, 60 * 60 * 1000);
 
   // Pembersihan otomatis telemetri lama (> 7 hari)
   try {

@@ -17,7 +17,9 @@ module.exports = {
       enabled: Boolean(r.enabled),
       duration: parseInt(r.duration) || 0,
       cooldown: parseInt(r.cooldown) || 10,
-      threshold: r.threshold !== null && r.threshold !== undefined ? parseFloat(r.threshold) : null
+      threshold: (r.threshold !== null && r.threshold !== undefined && r.threshold !== '')
+        ? (!isNaN(Number(r.threshold)) ? parseFloat(r.threshold) : String(r.threshold))
+        : null
     }));
   },
 
@@ -29,7 +31,9 @@ module.exports = {
       enabled: Boolean(r.enabled),
       duration: parseInt(r.duration) || 0,
       cooldown: parseInt(r.cooldown) || 10,
-      threshold: r.threshold !== null && r.threshold !== undefined ? parseFloat(r.threshold) : null
+      threshold: (r.threshold !== null && r.threshold !== undefined && r.threshold !== '')
+        ? (!isNaN(Number(r.threshold)) ? parseFloat(r.threshold) : String(r.threshold))
+        : null
     };
   },
 
@@ -44,6 +48,10 @@ module.exports = {
         duration, cooldown, lastTriggered, createdAt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+    const parsedThreshold = (data.threshold !== undefined && data.threshold !== '' && data.threshold !== null)
+      ? (!isNaN(Number(data.threshold)) ? parseFloat(data.threshold) : String(data.threshold))
+      : null;
+
     stmt.run(
       id,
       data.name || `Aturan Otomasi ${data.triggerComponentId || ''}`,
@@ -51,7 +59,7 @@ module.exports = {
       data.triggerDeviceId,
       data.triggerComponentId,
       data.operator || '>',
-      data.threshold !== undefined && data.threshold !== '' && data.threshold !== null ? parseFloat(data.threshold) : null,
+      parsedThreshold,
       data.actionDeviceId || data.triggerDeviceId,
       data.actionComponentId,
       data.actionType || 'on',
@@ -68,6 +76,9 @@ module.exports = {
     const current = this.getAutomationById(id);
     if (!current) return null;
     const merged = { ...current, ...fields };
+    const parsedThreshold = (merged.threshold !== null && merged.threshold !== '' && merged.threshold !== undefined)
+      ? (!isNaN(Number(merged.threshold)) ? parseFloat(merged.threshold) : String(merged.threshold))
+      : null;
 
     this.db.prepare(`
       UPDATE automations SET
@@ -91,7 +102,7 @@ module.exports = {
       merged.triggerDeviceId,
       merged.triggerComponentId,
       merged.operator,
-      merged.threshold !== null && merged.threshold !== '' && merged.threshold !== undefined ? parseFloat(merged.threshold) : null,
+      parsedThreshold,
       merged.actionDeviceId,
       merged.actionComponentId,
       merged.actionType,

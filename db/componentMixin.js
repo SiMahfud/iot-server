@@ -93,20 +93,40 @@ module.exports = {
 
   addTelemetry(deviceId, componentId, value, timestamp = new Date().toISOString()) {
     try {
+      this._lastTelemetryCache = this._lastTelemetryCache || new Map();
+      const nowMs = Date.now();
+
+      const shouldRecord = (compKey, num) => {
+        const prev = this._lastTelemetryCache.get(compKey);
+        if (!prev) {
+          this._lastTelemetryCache.set(compKey, { val: num, time: nowMs });
+          return true;
+        }
+        const timeDiff = nowMs - prev.time;
+        // Simpan jika sudah > 15 detik ATAU terjadi perubahan nilai yang signifikan (deadband > 0.05)
+        if (timeDiff >= 15000 || Math.abs(prev.val - num) >= 0.05) {
+          this._lastTelemetryCache.set(compKey, { val: num, time: nowMs });
+          return true;
+        }
+        return false;
+      };
+
       if (typeof value === 'object' && value !== null) {
         for (const [subKey, subVal] of Object.entries(value)) {
           const num = parseFloat(subVal);
-          if (!isNaN(num)) {
+          const fullCompId = `${componentId}_${subKey}`;
+          if (!isNaN(num) && shouldRecord(`${deviceId}:${fullCompId}`, num)) {
             this.db.prepare(`
               INSERT INTO telemetry_history (deviceId, componentId, value, timestamp)
               VALUES (?, ?, ?, ?)
-            `).run(deviceId, `${componentId}_${subKey}`, num, timestamp);
+            `).run(deviceId, fullCompId, num, timestamp);
           }
         }
         return;
       }
+
       const numVal = parseFloat(value);
-      if (!isNaN(numVal)) {
+      if (!isNaN(numVal) && shouldRecord(`${deviceId}:${componentId}`, numVal)) {
         this.db.prepare(`
           INSERT INTO telemetry_history (deviceId, componentId, value, timestamp)
           VALUES (?, ?, ?, ?)
@@ -114,6 +134,19 @@ module.exports = {
       }
     } catch (err) {
       console.error('[SQLITE] Gagal simpan telemetry:', err.message);
+    }
+  },
+
+  deleteComponentTelemetry(deviceId, componentId) {
+    try {
+      const info = this.db.prepare(`
+        DELETE FROM telemetry_history
+        WHERE deviceId = ? AND (componentId = ? OR componentId LIKE ? || '_%')
+      `).run(deviceId, componentId, componentId);
+      return info.changes;
+    } catch (e) {
+      console.warn('[SQLITE] Gagal membersihkan riwayat telemetri komponen:', e.message);
+      return 0;
     }
   },
 

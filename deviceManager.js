@@ -436,10 +436,13 @@ class DeviceManager {
       }
     }
 
-    // 2b. Bersihkan jadwal dan aturan otomasi yang menargetkan komponen ini di DB & memori
+    // 2b. Bersihkan jadwal, riwayat telemetri, dan aturan otomasi yang menargetkan komponen ini di DB & memori
     try {
+      db.deleteComponentTelemetry(deviceId, componentId);
+
       const compRaw = componentId.startsWith('relay_') ? componentId.replace('relay_', '') : componentId;
-      db.db.prepare('DELETE FROM schedules WHERE deviceId = ? AND (componentId = ? OR componentId = ?)').run(deviceId, componentId, compRaw);
+      const chNum = parseInt(compRaw) || 0;
+      db.db.prepare('DELETE FROM schedules WHERE deviceId = ? AND (componentId = ? OR componentId = ? OR (channel > 0 AND channel = ?))').run(deviceId, componentId, compRaw, chNum);
       db.db.prepare('DELETE FROM automations WHERE (triggerDeviceId = ? AND triggerComponentId = ?) OR (actionDeviceId = ? AND actionComponentId = ?)').run(deviceId, componentId, deviceId, componentId);
 
       const schedulerManager = require('./schedulerManager');
@@ -552,7 +555,11 @@ class DeviceManager {
         if (diff > timeoutMs) {
           console.warn(`[WATCHDOG] Perangkat ${dev.deviceId} tidak merespons selama ${Math.round(diff/1000)}s -> Set Offline`);
           dev.isOnline = false;
-          this.sockets.delete(dev.deviceId);
+          const socket = this.sockets.get(dev.deviceId);
+          if (socket) {
+            try { socket.terminate(); } catch (e) {}
+            this.sockets.delete(dev.deviceId);
+          }
           db.setDeviceOnline(dev.deviceId, false, dev.lastSeen);
           db.addLog(dev.deviceId, 'device_timeout', `Watchdog timeout setelah ${Math.round(diff/1000)} detik`);
           if (onStaleCallback) {
