@@ -305,10 +305,50 @@ wss.on('connection', (ws, req) => {
         const targetSocket = deviceManager.getSocket(targetId);
 
         if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
-          // Teruskan pesan ke hardware termasuk field 'duration' jika ada (untuk timer countdown)
-          targetSocket.send(JSON.stringify(msg));
-          const durationInfo = msg.duration ? ` (timer: ${msg.duration}s)` : '';
-          console.log(`[KONTROL] Teruskan '${msg.action}' ke hardware ${targetId}${durationInfo}`);
+          if (msg.action === 'set_all') {
+            const dev = deviceManager.getDevice(targetId);
+            const stateBool = Boolean(msg.state);
+            const CONTROLLABLE = new Set(['switch', 'dimmer', 'servo', 'buzzer', 'rgb_led']);
+
+            // 1. Kirim set_component ke setiap modul GPIO / dynamic pins hardware
+            if (dev && Array.isArray(dev.components) && dev.components.length > 0) {
+              dev.components.forEach(c => {
+                if (CONTROLLABLE.has(c.type) || CONTROLLABLE.has(c.driver)) {
+                  const compVal = (c.type === 'dimmer') ? (stateBool ? 100 : 0)
+                    : (c.type === 'servo') ? (stateBool ? 90 : 0)
+                    : stateBool;
+                  targetSocket.send(JSON.stringify({
+                    action: 'set_component',
+                    target: targetId,
+                    componentId: c.id || c.componentId,
+                    value: compVal
+                  }));
+                }
+              });
+            }
+
+            // 2. Kirim set_relay ke setiap channel relay jika perangkat 4-relay
+            if (dev && Array.isArray(dev.relays) && dev.relays.length > 0) {
+              dev.relays.forEach(r => {
+                targetSocket.send(JSON.stringify({
+                  action: 'set_relay',
+                  target: targetId,
+                  channel: r.channel,
+                  state: stateBool
+                }));
+              });
+            }
+
+            // 3. Kirim juga set_all sebagai kompatibilitas backward jika firmware mendukung
+            targetSocket.send(JSON.stringify(msg));
+            console.log(`[KONTROL] Teruskan 'set_all' (state: ${stateBool}) ke seluruh modul hardware ${targetId}`);
+          } else {
+            // Teruskan pesan ke hardware termasuk field 'duration' jika ada (untuk timer countdown)
+            targetSocket.send(JSON.stringify(msg));
+            const durationInfo = msg.duration ? ` (timer: ${msg.duration}s)` : '';
+            console.log(`[KONTROL] Teruskan '${msg.action}' ke hardware ${targetId}${durationInfo}`);
+          }
+
           db.addLog(targetId, 'control_' + msg.action, {
             componentId: msg.componentId || null,
             channel: msg.channel || null,
