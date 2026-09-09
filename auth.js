@@ -17,22 +17,57 @@ class AuthManager {
     this.deviceSecret = config.auth?.deviceSecret || 'wemos-secret-key-3377';
   }
 
+  // Hash password menggunakan native scrypt dengan salt 16 bytes acak
+  hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const derivedKey = crypto.scryptSync(password, salt, 64);
+    return `scrypt$${salt}$${derivedKey.toString('hex')}`;
+  }
+
+  // Verifikasi hash password atau plaintext legacy (timing-safe)
+  verifyPasswordHash(password, storedPassword) {
+    if (!storedPassword || typeof storedPassword !== 'string' || !password) return false;
+    if (storedPassword.startsWith('scrypt$')) {
+      const parts = storedPassword.split('$');
+      if (parts.length !== 3) return false;
+      const [, salt, expectedHashHex] = parts;
+      const derivedKey = crypto.scryptSync(password, salt, 64);
+      const expectedBuf = Buffer.from(expectedHashHex, 'hex');
+      if (derivedKey.length !== expectedBuf.length) return false;
+      return crypto.timingSafeEqual(derivedKey, expectedBuf);
+    }
+    // Fallback legacy plaintext (sebelum migrasi hash)
+    const userBuf = Buffer.from(String(password));
+    const storedBuf = Buffer.from(String(storedPassword));
+    if (userBuf.length !== storedBuf.length) return false;
+    return crypto.timingSafeEqual(userBuf, storedBuf);
+  }
+
   // Verifikasi username & password login admin via SQLite (fallback ke config.json jika perlu)
   verifyLogin(username, password) {
+    if (!username || !password) return false;
     try {
       const user = db.getUser(username);
       if (user) {
-        return user.password === password;
+        const isValid = this.verifyPasswordHash(password, user.password);
+        // Jika valid dan password masih berupa plaintext legacy, lakukan transparent upgrade ke hash scrypt
+        if (isValid && !user.password.startsWith('scrypt$')) {
+          const hashed = this.hashPassword(password);
+          db.updatePassword(username, hashed);
+          console.log(`[AUTH] Password user '${username}' berhasil dimigrasikan ke hash kriptografi scrypt`);
+        }
+        return isValid;
       }
     } catch (err) {
       console.warn('[AUTH] Gagal membaca user dari DB, fallback ke config:', err.message);
     }
 
     const currentConfig = this.getLatestConfig();
-    return (
-      username === currentConfig.auth.username &&
-      password === currentConfig.auth.password
-    );
+    if (currentConfig.auth && currentConfig.auth.username === username && currentConfig.auth.password) {
+      const isValid = this.verifyPasswordHash(password, currentConfig.auth.password);
+      return isValid;
+    }
+    return false;
   }
 
   // Buat Token Sesi (Masa berlaku 30 hari)
@@ -42,7 +77,9 @@ class AuthManager {
       exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 hari
     };
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto.createHmac('sha256', this.secret).update(encodedPayload).digest('base64url');
+    const currentConfig = this.getLatestConfig();
+    const tokenSecret = currentConfig.auth?.tokenSecret || this.secret;
+    const signature = crypto.createHmac('sha256', tokenSecret).update(encodedPayload).digest('base64url');
     return `${encodedPayload}.${signature}`;
   }
 
@@ -54,7 +91,9 @@ class AuthManager {
 
     try {
       const [encodedPayload, signature] = parts;
-      const expectedSig = crypto.createHmac('sha256', this.secret).update(encodedPayload).digest('base64url');
+      const currentConfig = this.getLatestConfig();
+      const tokenSecret = currentConfig.auth?.tokenSecret || this.secret;
+      const expectedSig = crypto.createHmac('sha256', tokenSecret).update(encodedPayload).digest('base64url');
 
       const sigBuf = Buffer.from(signature);
       const expBuf = Buffer.from(expectedSig);
@@ -74,10 +113,15 @@ class AuthManager {
     }
   }
 
-  // Verifikasi kunci rahasia hardware Wemos
+  // Verifikasi kunci rahasia hardware Wemos (timing-safe)
   verifyDeviceKey(key) {
+    if (!key || typeof key !== 'string') return false;
     const currentConfig = this.getLatestConfig();
-    return key === currentConfig.auth.deviceSecret;
+    const deviceSecret = currentConfig.auth?.deviceSecret || this.deviceSecret;
+    const keyBuf = Buffer.from(key);
+    const secretBuf = Buffer.from(deviceSecret);
+    if (keyBuf.length !== secretBuf.length) return false;
+    return crypto.timingSafeEqual(keyBuf, secretBuf);
   }
 
   // Buat Token Sesi Hardware (Berlaku 7 hari)
@@ -87,11 +131,13 @@ class AuthManager {
       exp: Date.now() + 7 * 24 * 60 * 60 * 1000
     };
     const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
-    const signature = crypto.createHmac('sha256', this.secret).update(`device:${encoded}`).digest('base64url');
+    const currentConfig = this.getLatestConfig();
+    const tokenSecret = currentConfig.auth?.tokenSecret || this.secret;
+    const signature = crypto.createHmac('sha256', tokenSecret).update(`device:${encoded}`).digest('base64url');
     return `sess_${encoded}.${signature}`;
   }
 
-  // Validasi token sesi hardware
+  // Validasi token sesi hardware (timing-safe)
   verifyDeviceSessionToken(token, deviceId) {
     if (!token || typeof token !== 'string') return false;
     const cleanToken = token.startsWith('sess_') ? token.substring(5) : token;
@@ -99,10 +145,13 @@ class AuthManager {
     if (parts.length !== 2) return false;
 
     const [encoded, signature] = parts;
-    const expectedSig = crypto.createHmac('sha256', this.secret).update(`device:${encoded}`).digest('base64url');
+    const currentConfig = this.getLatestConfig();
+    const tokenSecret = currentConfig.auth?.tokenSecret || this.secret;
+    const expectedSig = crypto.createHmac('sha256', tokenSecret).update(`device:${encoded}`).digest('base64url');
 
-    if (signature.length !== expectedSig.length) return false;
-    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
       return false;
     }
 
@@ -116,19 +165,25 @@ class AuthManager {
     }
   }
 
-  // Ubah password admin di SQLite dan sinkronkan ke config.json
-  changePassword(newPassword) {
-    // 1. Simpan di database SQLite
-    db.updatePassword('admin', newPassword);
-    db.addLog(null, 'auth_password_changed', 'Password administrator diperbarui');
+  // Ubah password user di SQLite (hash scrypt) dan bersihkan plaintext password dari config.json
+  changePassword(usernameOrPassword, maybeNewPassword) {
+    const username = maybeNewPassword !== undefined ? usernameOrPassword : 'admin';
+    const newPassword = maybeNewPassword !== undefined ? maybeNewPassword : usernameOrPassword;
+    const hashedPassword = this.hashPassword(newPassword);
 
-    // 2. Sinkronkan juga ke config.json
+    // 1. Simpan di database SQLite
+    db.updatePassword(username, hashedPassword);
+    db.addLog(null, 'auth_password_changed', `Password untuk '${username}' berhasil diperbarui (scrypt)`);
+
+    // 2. Bersihkan password plaintext dari config.json demi keamanan
     try {
       const cfg = this.getLatestConfig();
-      cfg.auth.password = newPassword;
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+      if (cfg && cfg.auth) {
+        delete cfg.auth.password;
+        fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+      }
     } catch (err) {
-      console.warn('[AUTH] Gagal sinkronisasi password ke config.json:', err.message);
+      console.warn('[AUTH] Gagal membersihkan password plaintext dari config.json:', err.message);
     }
 
     return true;

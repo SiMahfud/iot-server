@@ -72,7 +72,7 @@ router.post(['/auth/change-password', '/user/password'], requireAuth, (req, res)
     return res.status(400).json({ success: false, message: 'Password baru minimal 6 karakter!' });
   }
 
-  auth.changePassword(newPassword);
+  auth.changePassword(req.user.u, newPassword);
   console.log(`[AUTH] Password diubah untuk user: ${req.user.u}`);
   res.json({ success: true, message: 'Password berhasil diubah!' });
 });

@@ -58,7 +58,11 @@ function broadcastToBrowsers(message) {
   const payload = JSON.stringify(message);
   for (const client of authenticatedBrowsers) {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(payload);
+      try {
+        client.send(payload);
+      } catch (err) {
+        console.warn('[WS BROADCAST ERROR]', err.message);
+      }
     }
   }
 }
@@ -95,6 +99,20 @@ app.get('/api/component-types', (req, res) => {
 app.use('/api', requireAuth, deviceRoutes.router);
 app.use('/api/schedules', requireAuth, scheduleRoutes.router);
 app.use('/api', requireAuth, automationRoutes.router);
+
+// Fallback 404 untuk API yang tidak terdaftar
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint API tidak ditemukan' });
+});
+
+// Middleware Global Error Handler untuk Express
+app.use((err, req, res, next) => {
+  console.error('[EXPRESS ERROR]', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Terjadi kesalahan internal server'
+  });
+});
 
 // -------------------------------------------------------------
 // WebSocket Handler dengan Autentikasi Ketat
@@ -137,6 +155,10 @@ wss.on('connection', (ws, req) => {
       ws.close(4001, 'Unauthorized');
     }
   }, 8000);
+
+  if (isAuthenticated) {
+    clearTimeout(authTimeout);
+  }
 
   ws.on('message', (messageRaw) => {
     try {
@@ -308,6 +330,13 @@ wss.on('connection', (ws, req) => {
 
       // 3. Perintah Kontrol Komponen Universal & Relay & I2C Scan & Virtual Pin & Kalibrasi
       if (msg.action === 'set_component' || msg.action === 'set_relay' || msg.action === 'set_all' || msg.action === 'get_status' || msg.action === 'ota_update' || msg.action === 'scan_i2c' || msg.action === 'virtual_write' || msg.action === 'calibrate_component') {
+        // Keamanan: Hanya browser administrator yang diizinkan mengirim perintah kontrol
+        if (!authenticatedBrowsers.has(ws)) {
+          console.warn(`[SECURITY] Perintah kontrol '${msg.action}' dari ${clientIp} ditolak (bukan browser terotentikasi)`);
+          ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'Akses ditolak: Hanya sesi administrator yang dapat mengontrol perangkat' }));
+          return;
+        }
+
         const targetId = msg.target;
         const targetSocket = deviceManager.getSocket(targetId);
 
@@ -317,8 +346,21 @@ wss.on('connection', (ws, req) => {
             const stateBool = Boolean(msg.state);
             const CONTROLLABLE = new Set(['switch', 'dimmer', 'servo', 'buzzer', 'rgb_led']);
 
-            // 1. Kirim set_component ke setiap modul GPIO / dynamic pins hardware
-            if (dev && Array.isArray(dev.components) && dev.components.length > 0) {
+            // Mencegah packet flooding: kirim perintah tunggal yang sesuai dengan tipe perangkat
+            if (dev && dev.type === '4-relay') {
+              if (Array.isArray(dev.relays) && dev.relays.length > 0) {
+                dev.relays.forEach(r => {
+                  targetSocket.send(JSON.stringify({
+                    action: 'set_relay',
+                    target: targetId,
+                    channel: r.channel,
+                    state: stateBool
+                  }));
+                });
+              } else {
+                targetSocket.send(JSON.stringify(msg));
+              }
+            } else if (dev && Array.isArray(dev.components) && dev.components.length > 0) {
               dev.components.forEach(c => {
                 if (CONTROLLABLE.has(c.type) || CONTROLLABLE.has(c.driver)) {
                   const compVal = (c.type === 'dimmer') ? (stateBool ? 100 : 0)
@@ -332,23 +374,10 @@ wss.on('connection', (ws, req) => {
                   }));
                 }
               });
+            } else {
+              targetSocket.send(JSON.stringify(msg));
             }
-
-            // 2. Kirim set_relay ke setiap channel relay jika perangkat 4-relay
-            if (dev && Array.isArray(dev.relays) && dev.relays.length > 0) {
-              dev.relays.forEach(r => {
-                targetSocket.send(JSON.stringify({
-                  action: 'set_relay',
-                  target: targetId,
-                  channel: r.channel,
-                  state: stateBool
-                }));
-              });
-            }
-
-            // 3. Kirim juga set_all sebagai kompatibilitas backward jika firmware mendukung
-            targetSocket.send(JSON.stringify(msg));
-            console.log(`[KONTROL] Teruskan 'set_all' (state: ${stateBool}) ke seluruh modul hardware ${targetId}`);
+            console.log(`[KONTROL] Teruskan 'set_all' (state: ${stateBool}) ke hardware ${targetId}`);
           } else {
             // Teruskan pesan ke hardware termasuk field 'duration' jika ada (untuk timer countdown)
             targetSocket.send(JSON.stringify(msg));
@@ -392,6 +421,11 @@ wss.on('connection', (ws, req) => {
 
       // 3b. Perintah Batalkan Timer Countdown
       if (msg.action === 'cancel_timer') {
+        if (!authenticatedBrowsers.has(ws)) {
+          ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'Akses ditolak: Hanya sesi administrator yang dapat membatalkan timer' }));
+          return;
+        }
+
         const targetId = msg.target;
         const targetSocket = deviceManager.getSocket(targetId);
         const compId = msg.componentId || (msg.channel !== undefined ? `relay_${msg.channel}` : null);
@@ -486,6 +520,16 @@ server.listen(PORT, () => {
     });
   }
 
+  // Pembersihan otomatis telemetri lama (> 7 hari)
+  try {
+    db.pruneOldTelemetry(7);
+  } catch (e) {}
+  setInterval(() => {
+    try {
+      db.pruneOldTelemetry(7);
+    } catch (e) {}
+  }, 24 * 60 * 60 * 1000);
+
   console.log(`
 ============================================================
   🔒 AgyGateway Universal IoT Server Aktif (SQLite Mode)
@@ -498,4 +542,13 @@ server.listen(PORT, () => {
   - Automations    : ${automationEngine.getRules().length} aturan aktif
 ============================================================
   `);
+});
+
+// Proteksi Global Exception Handlers agar proses server tidak crash
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL UNCAUGHT EXCEPTION]', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED PROMISE REJECTION]', reason);
 });

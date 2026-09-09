@@ -4,6 +4,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const STATE_JSON = path.join(__dirname, '..', 'state.json');
 const SCHEDULES_JSON = path.join(__dirname, '..', 'schedules.json');
@@ -89,11 +90,17 @@ module.exports = {
         const raw = fs.readFileSync(CONFIG_JSON, 'utf8');
         const parsed = JSON.parse(raw);
         if (parsed.auth && parsed.auth.username && parsed.auth.password) {
+          let passwordToStore = parsed.auth.password;
+          if (!passwordToStore.startsWith('scrypt$')) {
+            const salt = crypto.randomBytes(16).toString('hex');
+            const derivedKey = crypto.scryptSync(passwordToStore, salt, 64);
+            passwordToStore = `scrypt$${salt}$${derivedKey.toString('hex')}`;
+          }
           this.db.prepare(`
             INSERT INTO users (username, password, role, updatedAt)
             VALUES (?, ?, 'admin', ?)
-          `).run(parsed.auth.username, parsed.auth.password, new Date().toISOString());
-          console.log(`[SQLITE] User '${parsed.auth.username}' diinisialisasi dari config.json ke SQLite`);
+          `).run(parsed.auth.username, passwordToStore, new Date().toISOString());
+          console.log(`[SQLITE] User '${parsed.auth.username}' diinisialisasi dari config.json ke SQLite dengan hash scrypt`);
         }
       } catch (err) {
         console.error('[SQLITE] Gagal inisialisasi user dari config.json:', err.message);

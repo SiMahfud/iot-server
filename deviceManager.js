@@ -116,8 +116,30 @@ class DeviceManager {
 
     const data = payload.data || {};
     for (const [compId, val] of Object.entries(data)) {
-      // 1. Simpan nilai terkini di tabel device_components
-      db.updateComponentValue(deviceId, compId, val, now);
+      const valStr = (typeof val === 'object' && val !== null) ? JSON.stringify(val) : String(val);
+
+      // 1. Simpan nilai terkini di tabel device_components (auto-register jika komponen baru / companion metric)
+      let c = Array.isArray(dev.components) ? dev.components.find(x => x.id === compId || x.componentId === compId) : null;
+      if (!c) {
+        const autoType = (val === true || val === false || val === 'true' || val === 'false') ? 'switch'
+          : (!isNaN(parseFloat(val)) ? 'sensor' : 'indicator');
+        const newComp = {
+          id: compId,
+          componentId: compId,
+          type: autoType,
+          name: compId,
+          unit: '',
+          value: valStr,
+          access: autoType === 'switch' ? 'rw' : 'r',
+          updatedAt: now
+        };
+        db.upsertComponent(deviceId, newComp);
+        dev.components = db.getComponents(deviceId);
+        c = dev.components.find(x => x.id === compId || x.componentId === compId);
+      } else {
+        db.updateComponentValue(deviceId, compId, valStr, now);
+        c.value = valStr;
+      }
 
       // 2. Jika nilai berupa angka numerik, catat ke tabel riwayat telemetri
       const numVal = parseFloat(val);
@@ -125,13 +147,7 @@ class DeviceManager {
         db.addTelemetry(deviceId, compId, numVal, now);
       }
 
-      // 3. Sinkronisasi ke array in-memory
-      if (Array.isArray(dev.components)) {
-        const c = dev.components.find(x => x.id === compId || x.componentId === compId);
-        if (c) c.value = String(val);
-      }
-
-      // 4. Jika komponen saklar relay_X, sinkronkan ke relays table
+      // 3. Jika komponen saklar relay_X, sinkronkan ke relays table
       if (/^relay_\d+$/i.test(compId)) {
         const ch = parseInt(compId.replace(/\D/g, '')) || 1;
         const stateBool = val === 'true' || val === true || val === '1';
@@ -282,14 +298,29 @@ class DeviceManager {
   renameRelay(deviceId, channel, newName) {
     const dev = this.devices[deviceId];
     if (dev) {
-      const r = dev.relays.find(x => x.channel === parseInt(channel));
+      const ch = parseInt(channel);
+      const trimmed = newName.trim();
+      db.renameRelay(deviceId, ch, trimmed);
+
+      if (!Array.isArray(dev.relays)) dev.relays = [];
+      let r = dev.relays.find(x => x.channel === ch);
       if (r) {
-        const trimmed = newName.trim();
         r.name = trimmed;
-        db.renameRelay(deviceId, channel, trimmed);
-        db.addLog(deviceId, 'rename_relay', `Nama Saklar #${channel} diubah menjadi "${trimmed}"`);
-        return dev;
+      } else {
+        dev.relays.push({ channel: ch, name: trimmed, state: false });
+        dev.relays.sort((a, b) => a.channel - b.channel);
       }
+
+      // Sinkronkan ke tabel device_components dan array dev.components (relay_X)
+      const compId = `relay_${ch}`;
+      db.renameComponent(deviceId, compId, trimmed);
+      if (Array.isArray(dev.components)) {
+        const comp = dev.components.find(c => c.id === compId || c.componentId === compId);
+        if (comp) comp.name = trimmed;
+      }
+
+      db.addLog(deviceId, 'rename_relay', `Nama Saklar #${ch} diubah menjadi "${trimmed}"`);
+      return dev;
     }
     return null;
   }
@@ -304,6 +335,23 @@ class DeviceManager {
           const c = dev.components.find(x => x.id === componentId || x.componentId === componentId);
           if (c) c.name = trimmed;
         }
+
+        // Jika komponen bertipe relay_X, sinkronkan juga ke tabel relays dan dev.relays
+        if (/^relay_\d+$/i.test(componentId)) {
+          const ch = parseInt(componentId.replace(/\D/g, ''));
+          if (ch) {
+            db.renameRelay(deviceId, ch, trimmed);
+            if (!Array.isArray(dev.relays)) dev.relays = [];
+            let r = dev.relays.find(x => x.channel === ch);
+            if (r) {
+              r.name = trimmed;
+            } else {
+              dev.relays.push({ channel: ch, name: trimmed, state: false });
+              dev.relays.sort((a, b) => a.channel - b.channel);
+            }
+          }
+        }
+
         db.addLog(deviceId, 'rename_component', `Nama komponen ${componentId} diubah menjadi "${trimmed}"`);
         return dev;
       }
@@ -335,11 +383,20 @@ class DeviceManager {
     // 1. Simpan ke SQLite
     db.upsertComponent(deviceId, comp);
 
-    // 2. Jika switch relay_X, sinkronkan ke tabel relays
+    // 2. Jika switch relay_X, sinkronkan ke tabel relays dan dev.relays
     if (comp.type === 'switch' && /^relay_\d+$/i.test(comp.id)) {
       const ch = parseInt(comp.id.replace(/\D/g, '')) || 1;
       const stateBool = comp.value === 'true' || comp.value === true || comp.value === '1';
       db.upsertRelay(deviceId, ch, comp.name, stateBool);
+      if (!Array.isArray(dev.relays)) dev.relays = [];
+      let r = dev.relays.find(x => x.channel === ch);
+      if (r) {
+        r.name = comp.name;
+        r.state = stateBool;
+      } else {
+        dev.relays.push({ channel: ch, name: comp.name, state: stateBool });
+        dev.relays.sort((a, b) => a.channel - b.channel);
+      }
     }
 
     // 3. Push konfigurasi langsung ke hardware jika online
@@ -373,7 +430,28 @@ class DeviceManager {
       const ch = parseInt(componentId.replace(/\D/g, ''));
       if (ch) {
         dev.relays = dev.relays.filter(r => r.channel !== ch);
+        try {
+          db.db.prepare('DELETE FROM relays WHERE deviceId = ? AND channel = ?').run(deviceId, ch);
+        } catch (e) {}
       }
+    }
+
+    // 2b. Bersihkan jadwal dan aturan otomasi yang menargetkan komponen ini di DB & memori
+    try {
+      const compRaw = componentId.startsWith('relay_') ? componentId.replace('relay_', '') : componentId;
+      db.db.prepare('DELETE FROM schedules WHERE deviceId = ? AND (componentId = ? OR componentId = ?)').run(deviceId, componentId, compRaw);
+      db.db.prepare('DELETE FROM automations WHERE (triggerDeviceId = ? AND triggerComponentId = ?) OR (actionDeviceId = ? AND actionComponentId = ?)').run(deviceId, componentId, deviceId, componentId);
+
+      const schedulerManager = require('./schedulerManager');
+      if (schedulerManager && typeof schedulerManager.reloadFromDb === 'function') {
+        schedulerManager.reloadFromDb();
+      }
+      const automationEngine = require('./automationEngine');
+      if (automationEngine && typeof automationEngine.reloadRules === 'function') {
+        automationEngine.reloadRules();
+      }
+    } catch (cleanupErr) {
+      console.warn('[CLEANUP] Peringatan saat membersihkan jadwal/otomasi komponen:', cleanupErr.message);
     }
 
     // 3. Beritahu hardware agar melepas pin tersebut
@@ -433,6 +511,21 @@ class DeviceManager {
     
     const success = db.deleteDevice(deviceId);
     db.addLog(deviceId, 'delete_device', `Perangkat ${deviceId} dihapus dari sistem`);
+
+    // Reload scheduler dan automation engine agar cron job dan rules di memori ikut bersih
+    try {
+      const schedulerManager = require('./schedulerManager');
+      if (schedulerManager && typeof schedulerManager.reloadFromDb === 'function') {
+        schedulerManager.reloadFromDb();
+      }
+    } catch (e) {}
+    try {
+      const automationEngine = require('./automationEngine');
+      if (automationEngine && typeof automationEngine.reloadRules === 'function') {
+        automationEngine.reloadRules();
+      }
+    } catch (e) {}
+
     return success;
   }
 

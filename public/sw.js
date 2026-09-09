@@ -1,20 +1,35 @@
 // Service Worker untuk PWA Offline Caching
-const CACHE_NAME = 'agygateway-v4.7';
+const CACHE_NAME = 'agygateway-v4.8';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/style.css?v=4.7',
-  '/css/widgets.css?v=4.7',
-  '/css/automations.css?v=4.7',
-  '/app.js?v=4.7',
   '/manifest.json',
-  '/icon.svg'
+  '/icon.svg',
+  '/style.css',
+  '/css/base.css',
+  '/css/layout.css',
+  '/css/components.css',
+  '/css/login.css',
+  '/css/widgets.css',
+  '/css/automations.css',
+  '/css/pin-manager.css',
+  '/css/tools.css',
+  '/css/misc.css',
+  '/app.js',
+  '/js/state.js',
+  '/js/wsClient.js',
+  '/js/modules/widgets.js',
+  '/js/modules/schedulerUi.js',
+  '/js/modules/automationsUi.js',
+  '/js/modules/pinManagerUi.js',
+  '/js/modules/telemetryChart.js',
+  '/js/modules/webSerialTools.js'
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching app shell v4.7');
+      console.log('[SW] Caching app shell v4.8 (lengkap)');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );

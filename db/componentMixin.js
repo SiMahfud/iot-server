@@ -123,5 +123,21 @@ module.exports = {
       WHERE deviceId = ? AND componentId = ?
       ORDER BY id DESC LIMIT ?
     `).all(deviceId, componentId, limit).reverse();
+  },
+
+  // Bersihkan data telemetri historis yang lebih lama dari rentang retensi (default 7 hari)
+  pruneOldTelemetry(retentionDays = 7) {
+    try {
+      const days = parseInt(retentionDays) || 7;
+      const stmt = this.db.prepare("DELETE FROM telemetry_history WHERE timestamp < datetime('now', '-' || ? || ' days')");
+      const info = stmt.run(days);
+      if (info.changes > 0) {
+        console.log(`[SQLITE] Pembersihan telemetri: ${info.changes} baris riwayat > ${days} hari dihapus`);
+      }
+      return info.changes;
+    } catch (err) {
+      console.error('[SQLITE] Gagal membersihkan riwayat telemetri lama:', err.message);
+      return 0;
+    }
   }
 };

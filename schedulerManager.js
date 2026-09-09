@@ -243,9 +243,20 @@ class SchedulerManager {
       }
     }
 
-    // Kirim perintah ke Hardware
+    // Kirim perintah ke Hardware sesuai tipe perangkat
     let payload;
-    if (compId) {
+    const isLegacyRelayDevice = dev && (dev.type === '4-relay' || (!dev.components || dev.components.length === 0));
+    if (isLegacyRelayDevice && schedule.channel) {
+      payload = {
+        action: 'set_relay',
+        target: schedule.deviceId,
+        channel: schedule.channel,
+        state: state
+      };
+      if (state === true && schedule.duration && schedule.duration > 0) {
+        payload.duration = schedule.duration * 60;
+      }
+    } else if (compId) {
       payload = {
         action: 'set_component',
         target: schedule.deviceId,
@@ -259,7 +270,7 @@ class SchedulerManager {
       payload = {
         action: 'set_relay',
         target: schedule.deviceId,
-        channel: schedule.channel,
+        channel: schedule.channel || 1,
         state: state
       };
       if (state === true && schedule.duration && schedule.duration > 0) {
