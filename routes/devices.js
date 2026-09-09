@@ -17,6 +17,13 @@ router.get('/devices', (req, res) => {
   res.json({ success: true, data: deviceManager.getAll() });
 });
 
+router.get('/devices/:deviceId', (req, res) => {
+  const { deviceId } = req.params;
+  const dev = deviceManager.getDevice(deviceId);
+  if (!dev) return res.status(404).json({ success: false, message: 'Device not found' });
+  res.json({ success: true, data: dev });
+});
+
 router.post('/devices', (req, res) => {
   const { deviceId, name, type } = req.body;
   if (!deviceId || !deviceId.trim()) {
@@ -103,9 +110,9 @@ router.get('/firmwares', (req, res) => {
   }
 });
 
-// --- Components Management ---
+// --- Components & Dynamic Pins Management ---
 
-router.post('/devices/:deviceId/components', (req, res) => {
+function handleConfigureComponent(req, res) {
   const { deviceId } = req.params;
   const compData = req.body;
 
@@ -118,16 +125,22 @@ router.post('/devices/:deviceId/components', (req, res) => {
 
   broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
   res.json({ success: true, data: updated, message: 'Komponen berhasil dikonfigurasi' });
-});
+}
 
-router.delete('/devices/:deviceId/components/:componentId', (req, res) => {
+function handleDeleteComponent(req, res) {
   const { deviceId, componentId } = req.params;
   const updated = deviceManager.deleteComponent(deviceId, componentId);
   if (!updated) return res.status(404).json({ success: false, message: 'Perangkat atau komponen tidak ditemukan' });
 
   broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: updated });
   res.json({ success: true, data: updated, message: `Komponen ${componentId} berhasil dihapus` });
-});
+}
+
+router.post('/devices/:deviceId/components', handleConfigureComponent);
+router.post('/devices/:deviceId/pins', handleConfigureComponent);
+
+router.delete('/devices/:deviceId/components/:componentId', handleDeleteComponent);
+router.delete('/devices/:deviceId/pins/:componentId', handleDeleteComponent);
 
 router.post('/devices/:deviceId/components/:componentId/rename', (req, res) => {
   const { deviceId, componentId } = req.params;
@@ -148,7 +161,18 @@ router.get('/devices/:deviceId/components/:componentId/history', (req, res) => {
   res.json({ success: true, data: history });
 });
 
-// --- Kontrol Komponen via REST API ---
+router.get('/devices/:deviceId/history', (req, res) => {
+  const { deviceId } = req.params;
+  const { componentId } = req.query;
+  if (!componentId) {
+    return res.status(400).json({ success: false, message: 'Query parameter componentId wajib diisi' });
+  }
+  const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+  const history = db.getTelemetryHistory(deviceId, componentId, limit);
+  res.json({ success: true, data: history });
+});
+
+// --- Kontrol Komponen & Timer via REST API ---
 
 router.post('/devices/:deviceId/components/:componentId/control', (req, res) => {
   const { deviceId, componentId } = req.params;
@@ -166,6 +190,30 @@ router.post('/devices/:deviceId/components/:componentId/control', (req, res) => 
     targetSocket.send(JSON.stringify(msg));
     db.addLog(deviceId, 'rest_control_component', { componentId, value, duration });
     res.json({ success: true, message: `Command sent to ${deviceId}/${componentId}` });
+  } else {
+    res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
+  }
+});
+
+router.post('/devices/:deviceId/cancel-timer', (req, res) => {
+  const { deviceId } = req.params;
+  const { componentId, channel } = req.body || {};
+  const compId = componentId || (channel !== undefined ? `relay_${channel}` : null);
+
+  if (!compId) {
+    return res.status(400).json({ success: false, message: 'componentId atau channel wajib diisi' });
+  }
+
+  const targetSocket = deviceManager.getSocket(deviceId);
+  if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
+    const msg = {
+      action: 'cancel_timer',
+      target: deviceId,
+      componentId: compId
+    };
+    targetSocket.send(JSON.stringify(msg));
+    db.addLog(deviceId, 'rest_cancel_timer', { componentId: compId });
+    res.json({ success: true, message: `Instruksi cancel_timer dikirim ke ${deviceId} (${compId})` });
   } else {
     res.status(503).json({ success: false, message: `Perangkat ${deviceId} sedang offline` });
   }

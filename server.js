@@ -329,11 +329,17 @@ wss.on('connection', (ws, req) => {
       if (msg.action === 'cancel_timer') {
         const targetId = msg.target;
         const targetSocket = deviceManager.getSocket(targetId);
+        const compId = msg.componentId || (msg.channel !== undefined ? `relay_${msg.channel}` : null);
 
         if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
-          targetSocket.send(JSON.stringify(msg));
-          console.log(`[KONTROL] Teruskan 'cancel_timer' channel ${msg.channel} ke ${targetId}`);
-          db.addLog(targetId, 'control_cancel_timer', { channel: msg.channel });
+          const outMsg = {
+            action: 'cancel_timer',
+            target: targetId,
+            componentId: compId
+          };
+          targetSocket.send(JSON.stringify(outMsg));
+          console.log(`[KONTROL] Teruskan 'cancel_timer' komponen ${compId} ke ${targetId}`);
+          db.addLog(targetId, 'control_cancel_timer', { componentId: compId, channel: msg.channel });
         } else {
           ws.send(JSON.stringify({
             type: 'NOTIFICATION',

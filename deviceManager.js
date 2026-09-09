@@ -456,6 +456,10 @@ class DeviceManager {
     });
   }
 
+  getDevice(deviceId) {
+    return this.devices[deviceId] || null;
+  }
+
   getAll() {
     return this.devices;
   }
