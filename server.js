@@ -331,8 +331,8 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      // 3. Perintah Kontrol Komponen Universal & Relay & I2C Scan & Virtual Pin & Kalibrasi
-      if (msg.action === 'set_component' || msg.action === 'set_relay' || msg.action === 'set_all' || msg.action === 'get_status' || msg.action === 'ota_update' || msg.action === 'scan_i2c' || msg.action === 'virtual_write' || msg.action === 'calibrate_component') {
+      // 3. Perintah Kontrol Komponen Universal & Relay & I2C Scan & Virtual Pin & Kalibrasi & Pemeliharaan (Reboot / Reset)
+      if (msg.action === 'set_component' || msg.action === 'set_relay' || msg.action === 'set_all' || msg.action === 'get_status' || msg.action === 'ota_update' || msg.action === 'scan_i2c' || msg.action === 'virtual_write' || msg.action === 'calibrate_component' || msg.action === 'reboot_device' || msg.action === 'factory_reset' || msg.action === 'reset_pins') {
         // Keamanan: Hanya browser administrator yang diizinkan mengirim perintah kontrol
         if (!authenticatedBrowsers.has(ws)) {
           console.warn(`[SECURITY] Perintah kontrol '${msg.action}' dari ${clientIp} ditolak (bukan browser terotentikasi)`);
@@ -455,6 +455,9 @@ wss.on('connection', (ws, req) => {
           updatedDev = deviceManager.setAllComponentsState(targetId, Boolean(msg.state));
         } else if (msg.action === 'set_relay') {
           updatedDev = deviceManager.updateComponentState(targetId, `relay_${msg.channel}`, Boolean(msg.state));
+        } else if (msg.action === 'reset_pins') {
+          const res = deviceManager.resetDevicePins(targetId);
+          if (res.success) updatedDev = res.device;
         }
 
         if (updatedDev) {

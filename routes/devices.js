@@ -282,6 +282,38 @@ router.post('/devices/:deviceId/virtual-write', (req, res) => {
   }
 });
 
+// --- Remote Maintenance: Reboot & Factory Reset ---
+
+router.post('/devices/:deviceId/reboot', (req, res) => {
+  const { deviceId } = req.params;
+  const result = deviceManager.rebootDevice(deviceId);
+  if (!result.success) {
+    return res.status(result.message.includes('offline') ? 503 : 400).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/devices/:deviceId/factory-reset', (req, res) => {
+  const { deviceId } = req.params;
+  const result = deviceManager.factoryResetDevice(deviceId);
+  if (!result.success) {
+    return res.status(result.message.includes('offline') ? 503 : 400).json(result);
+  }
+  res.json(result);
+});
+
+router.post('/devices/:deviceId/reset-pins', (req, res) => {
+  const { deviceId } = req.params;
+  const result = deviceManager.resetDevicePins(deviceId);
+  if (!result.success) {
+    return res.status(404).json(result);
+  }
+  if (result.device) {
+    broadcastToBrowsers({ type: 'DEVICE_UPDATE', device: result.device });
+  }
+  res.json(result);
+});
+
 /**
  * Inisialisasi dependensi yang di-inject dari server.js
  * Semua route menggunakan requireAuth middleware yang diset setelah init

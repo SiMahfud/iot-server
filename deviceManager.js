@@ -532,6 +532,61 @@ class DeviceManager {
     return success;
   }
 
+  rebootDevice(deviceId) {
+    const socket = this.getSocket(deviceId);
+    if (socket && socket.readyState === 1) {
+      socket.send(JSON.stringify({
+        action: 'reboot_device',
+        target: deviceId
+      }));
+      db.addLog(deviceId, 'reboot_triggered', 'Instruksi reboot jarak jauh dikirim ke hardware');
+      console.log(`[MAINTENANCE] Instruksi reboot dikirim ke ${deviceId}`);
+      return { success: true, message: `Instruksi reboot dikirim ke ${deviceId}` };
+    }
+    return { success: false, message: `Perangkat ${deviceId} sedang offline` };
+  }
+
+  factoryResetDevice(deviceId) {
+    const socket = this.getSocket(deviceId);
+    if (socket && socket.readyState === 1) {
+      socket.send(JSON.stringify({
+        action: 'factory_reset',
+        target: deviceId
+      }));
+      db.addLog(deviceId, 'factory_reset_triggered', 'Instruksi factory reset jarak jauh dikirim ke hardware');
+      console.log(`[MAINTENANCE] Instruksi factory reset dikirim ke ${deviceId}`);
+      return { success: true, message: `Instruksi Factory Reset dikirim ke ${deviceId}` };
+    }
+    return { success: false, message: `Perangkat ${deviceId} sedang offline` };
+  }
+
+  resetDevicePins(deviceId) {
+    const dev = this.devices[deviceId];
+    if (!dev) return { success: false, message: 'Perangkat tidak ditemukan' };
+
+    try {
+      db.db.prepare('DELETE FROM device_components WHERE deviceId = ?').run(deviceId);
+      db.db.prepare('DELETE FROM relays WHERE deviceId = ?').run(deviceId);
+    } catch (e) {
+      console.warn('[RESET PINS DB ERROR]', e.message);
+    }
+
+    dev.components = [];
+    dev.relays = [];
+
+    const socket = this.getSocket(deviceId);
+    if (socket && socket.readyState === 1) {
+      socket.send(JSON.stringify({
+        action: 'reset_pins',
+        target: deviceId
+      }));
+      console.log(`[DYNAMIC PINS] Instruksi reset_pins dikirim ke hardware ${deviceId}`);
+    }
+
+    db.addLog(deviceId, 'reset_pins_triggered', 'Semua konfigurasi pin dinamis direset dari sistem');
+    return { success: true, device: dev, message: `Semua pin dinamis ${deviceId} berhasil direset` };
+  }
+
   triggerOTA(deviceId, binUrl) {
     const socket = this.getSocket(deviceId);
     if (socket && socket.readyState === 1) {

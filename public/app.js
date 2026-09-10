@@ -11,6 +11,7 @@ import { initSchedulerUi, renderScheduleList } from './js/modules/schedulerUi.js
 import { initTelemetryChart } from './js/modules/telemetryChart.js';
 import { initPinManagerUi } from './js/modules/pinManagerUi.js';
 import { initWebSerialTools } from './js/modules/webSerialTools.js';
+import { initDeviceMaintenanceUi } from './js/modules/deviceMaintenanceUi.js';
 
 // DOM Elements
 const loginScreen = document.getElementById('loginScreen');
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTelemetryChart();
   initPinManagerUi();
   initWebSerialTools();
+  initDeviceMaintenanceUi();
 
   // PWA Service Worker
   if ('serviceWorker' in navigator) {

@@ -187,6 +187,13 @@
           </svg>
           <span>Modul & Pin</span>
         </button>
+        <button id="btnOpenDeviceMaintenance" class="btn-device-maintenance" type="button" title="Pemeliharaan: Reboot & Reset Jarak Jauh">
+          <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+            <line x1="12" y1="2" x2="12" y2="12"></line>
+          </svg>
+          <span>Reboot & Reset</span>
+        </button>
         <button id="btnDeleteDevice" class="btn-delete-device" type="button" title="Hapus Perangkat dari Sistem">
           <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -1142,6 +1149,9 @@ void loop() {
         <button type="button" class="pin-tab-btn" data-pin-tab="tabScanI2c">
           🔍 Auto-Scan I2C
         </button>
+        <button type="button" class="pin-tab-btn" data-pin-tab="tabPinMaintenance">
+          ⚡ Reboot & Reset
+        </button>
       </div>
 
       <div class="modal-body modal-scrollable">
@@ -1278,6 +1288,135 @@ void loop() {
                 <span>Klik tombol di atas untuk mendeteksi sensor I2C yang terhubung.</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 4: PEMELIHARAAN (REBOOT & RESET) -->
+        <div id="tabPinMaintenance" class="pin-tab-content">
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 4px 0;">
+            <!-- Reboot Card -->
+            <div class="maintenance-card reboot-card">
+              <div class="maintenance-card-header">
+                <div class="maint-icon-badge reboot">🔄</div>
+                <div>
+                  <h4 class="maint-card-title">Reboot Jarak Jauh (Soft Restart)</h4>
+                  <p class="maint-card-desc">Menjalankan ulang chip mikrokontroler (ESP.restart()). Konfigurasi WiFi dan pemetaan pin tetap aman. Perangkat online kembali dalam 5-10 detik.</p>
+                </div>
+              </div>
+              <div class="maint-card-action">
+                <button type="button" class="btn-maint-action btn-maint-reboot btn-trigger-reboot">
+                  🔄 Reboot Perangkat
+                </button>
+              </div>
+            </div>
+
+            <!-- Reset Pins Card -->
+            <div class="maintenance-card pins-card">
+              <div class="maintenance-card-header">
+                <div class="maint-icon-badge pins">🧹</div>
+                <div>
+                  <h4 class="maint-card-title">Reset Konfigurasi Pin & Modul</h4>
+                  <p class="maint-card-desc">Hapus seluruh modul GPIO, sensor, dan saklar dinamis di server dan chip ESP. Kredensial WiFi tetap aman.</p>
+                </div>
+              </div>
+              <div class="maint-card-action">
+                <button type="button" class="btn-maint-action btn-maint-pins btn-trigger-reset-pins">
+                  🧹 Reset Semua Pin
+                </button>
+              </div>
+            </div>
+
+            <!-- Factory Reset Card -->
+            <div class="maintenance-card factory-card">
+              <div class="maintenance-card-header">
+                <div class="maint-icon-badge factory">⚠️</div>
+                <div>
+                  <h4 class="maint-card-title">Remote Factory Reset (Reset Total)</h4>
+                  <p class="maint-card-desc">Hapus total kredensial WiFi dan penyimpanan flash internal. Perangkat akan <strong>langsung offline</strong> dan kembali ke mode Access Point / Setup awal.</p>
+                </div>
+              </div>
+              <div class="maint-warning-box">
+                <span>⚠️ Perhatian: Perangkat akan terputus dari WiFi & server sampai Anda melakukan pairing WiFi ulang!</span>
+              </div>
+              <div class="maint-card-action">
+                <button type="button" class="btn-maint-action btn-maint-danger btn-trigger-factory-reset">
+                  ⚠️ Factory Reset Total
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: PEMELIHARAAN PERANGKAT (REBOOT & RESET)
+  ========================================== -->
+  <div id="modalDeviceMaintenance" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-md">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title">🛠️ Pemeliharaan Jarak Jauh (Remote)</h3>
+          <span class="modal-subtitle" id="maintDeviceLabel">Perangkat: -</span>
+        </div>
+        <button type="button" id="btnCloseDeviceMaintenance" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body modal-scrollable" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
+        <!-- Reboot Card -->
+        <div class="maintenance-card reboot-card">
+          <div class="maintenance-card-header">
+            <div class="maint-icon-badge reboot">🔄</div>
+            <div>
+              <h4 class="maint-card-title">Reboot Jarak Jauh (Soft Restart)</h4>
+              <p class="maint-card-desc">Menjalankan ulang chip mikrokontroler (ESP.restart()). Konfigurasi WiFi dan pemetaan pin tetap aman. Perangkat online kembali dalam 5-10 detik.</p>
+            </div>
+          </div>
+          <div class="maint-card-action">
+            <button type="button" class="btn-maint-action btn-maint-reboot btn-trigger-reboot">
+              🔄 Reboot Perangkat
+            </button>
+          </div>
+        </div>
+
+        <!-- Reset Pins Card -->
+        <div class="maintenance-card pins-card">
+          <div class="maintenance-card-header">
+            <div class="maint-icon-badge pins">🧹</div>
+            <div>
+              <h4 class="maint-card-title">Reset Konfigurasi Pin & Modul</h4>
+              <p class="maint-card-desc">Hapus seluruh modul GPIO, sensor, dan saklar dinamis di server dan chip ESP. Kredensial WiFi tetap aman.</p>
+            </div>
+          </div>
+          <div class="maint-card-action">
+            <button type="button" class="btn-maint-action btn-maint-pins btn-trigger-reset-pins">
+              🧹 Reset Semua Pin
+            </button>
+          </div>
+        </div>
+
+        <!-- Factory Reset Card -->
+        <div class="maintenance-card factory-card">
+          <div class="maintenance-card-header">
+            <div class="maint-icon-badge factory">⚠️</div>
+            <div>
+              <h4 class="maint-card-title">Remote Factory Reset (Reset Total)</h4>
+              <p class="maint-card-desc">Hapus total kredensial WiFi dan penyimpanan flash internal. Perangkat akan <strong>langsung offline</strong> dan kembali ke mode Access Point / Setup awal.</p>
+            </div>
+          </div>
+          <div class="maint-warning-box">
+            <span>⚠️ Perhatian: Perangkat akan terputus dari WiFi & server sampai Anda melakukan pairing WiFi ulang!</span>
+          </div>
+          <div class="maint-card-action">
+            <button type="button" class="btn-maint-action btn-maint-danger btn-trigger-factory-reset">
+              ⚠️ Factory Reset Total
+            </button>
           </div>
         </div>
       </div>
