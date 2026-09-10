@@ -69,8 +69,11 @@
   align-items: center;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 0 12px 0;
+  padding: 4px 16px 12px 2px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, black calc(100% - 36px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 36px), transparent 100%);
 }
 
 .component-filter-bar::-webkit-scrollbar {
@@ -87,6 +90,7 @@
   border-radius: 20px;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: var(--transition-smooth);
 }
 

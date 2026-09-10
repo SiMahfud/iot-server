@@ -49,39 +49,32 @@
 /* Pin Modal Tabs */
 .pin-modal-tabs {
   display: flex;
+  align-items: center;
   gap: 6px;
   padding: 10px 18px;
   background: rgba(0, 0, 0, 0.25);
   border-bottom: 1px solid var(--border-color);
   overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .pin-modal-tabs::-webkit-scrollbar {
-  height: 4px;
-}
-
-.pin-modal-tabs::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.pin-modal-tabs::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
+  display: none;
 }
 
 .pin-tab-btn {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 8px;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pin-tab-btn:hover {
@@ -125,6 +118,7 @@
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 14px;
+  gap: 12px;
   transition: all 0.2s ease;
 }
 
@@ -137,6 +131,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  flex: 1;
 }
 
 .pin-badge {
@@ -148,6 +144,8 @@
   font-size: 0.72rem;
   font-weight: 700;
   font-family: monospace;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pin-badge.pin-analog {
@@ -166,51 +164,71 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .pin-item-name {
   font-size: 0.86rem;
   font-weight: 600;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pin-item-type {
   font-size: 0.7rem;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pin-item-type code {
+  font-family: monospace;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 4px;
 }
 
 .pin-item-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .pin-live-val {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--primary-glow);
   background: rgba(16, 185, 129, 0.1);
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  white-space: nowrap;
 }
 
 .btn-delete-pin {
   background: rgba(244, 63, 94, 0.1);
   border: 1px solid rgba(244, 63, 94, 0.25);
   color: #f43f5e;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .btn-delete-pin:hover {
   background: #f43f5e;
   color: #fff;
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.35);
 }
 
 /* Form Pin Grid */
@@ -222,14 +240,8 @@
 
 .form-row-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
-}
-
-@media (max-width: 480px) {
-  .form-row-2 {
-    grid-template-columns: 1fr;
-  }
 }
 
 .form-hint {

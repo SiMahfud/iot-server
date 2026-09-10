@@ -6,10 +6,14 @@
 /* --- Component Filter Pills --- */
 .component-filter-bar {
   display: flex;
+  align-items: center;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 0 12px 0;
+  padding: 4px 16px 12px 2px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, black calc(100% - 36px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 36px), transparent 100%);
 }
 .component-filter-bar::-webkit-scrollbar {
   display: none;
@@ -24,6 +28,7 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: var(--transition-smooth);
 }
 .comp-filter-pill:hover {
@@ -119,9 +124,14 @@
   border: none;
   color: var(--text-subtle);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 5px 7px;
+  min-width: 30px;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-sm);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   transition: var(--transition-smooth);
 }
 .btn-card-action:hover {
@@ -138,7 +148,11 @@
   color: var(--text-muted);
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 4px 8px;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: var(--transition-smooth);

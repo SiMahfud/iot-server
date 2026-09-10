@@ -16,6 +16,11 @@ export function initPinManagerUi() {
 
   if (btnOpen && modal) {
     btnOpen.addEventListener('click', () => {
+      const dev = state.getActiveDevice();
+      const labelEl = document.getElementById('pinManagerDeviceLabel');
+      if (labelEl && dev) {
+        labelEl.textContent = `Perangkat: ${dev.name || dev.deviceId || dev.id}`;
+      }
       renderActivePinsList();
       modal.classList.remove('hidden');
     });
@@ -26,6 +31,9 @@ export function initPinManagerUi() {
       modal.classList.add('hidden');
     });
   }
+
+  // Inisialisasi Dynamic Form Visibility (Smart Fields)
+  setupDynamicPinForm();
 
   // Tab switcher di dalam Pin Manager Modal
   document.querySelectorAll('.pin-tab-btn').forEach(btn => {
@@ -220,32 +228,151 @@ export function initPinManagerUi() {
   });
 }
 
+function setupDynamicPinForm() {
+  const driverSelect = document.getElementById('pinDriverType');
+  if (!driverSelect) return;
+
+  const groupPinSelect = document.getElementById('groupPinSelect');
+  const groupPinCompUnit = document.getElementById('groupPinCompUnit');
+  const groupPinReadInterval = document.getElementById('groupPinReadInterval');
+  const groupPinActiveLow = document.getElementById('groupPinActiveLow');
+  const pinCompName = document.getElementById('pinCompName');
+  const pinCompUnit = document.getElementById('pinCompUnit');
+  const pinReadInterval = document.getElementById('pinReadInterval');
+  const pinSelectHint = document.getElementById('pinSelectHint');
+
+  function updateFields() {
+    const driver = driverSelect.value;
+    const isI2c = ['bmp280', 'bh1750', 'sht30', 'aht10', 'mpu6050'].includes(driver);
+    const isActuator = ['switch', 'dimmer', 'servo', 'rgb_led', 'buzzer'].includes(driver);
+    const isSensor = !isActuator;
+
+    // Pin select hint
+    if (groupPinSelect) {
+      if (isI2c) {
+        if (pinSelectHint) pinSelectHint.textContent = 'Sensor I2C menggunakan jalur SDA/SCL bersama secara otomatis.';
+      } else {
+        if (pinSelectHint) pinSelectHint.textContent = 'Pilih pin GPIO tempat kabel sensor/aktuator ditancapkan.';
+      }
+    }
+
+    // Active Low / High logic: hanya untuk saklar/relay, buzzer, dan digital_in
+    if (groupPinActiveLow) {
+      if (['switch', 'buzzer', 'digital_in'].includes(driver)) {
+        groupPinActiveLow.classList.remove('hidden');
+      } else {
+        groupPinActiveLow.classList.add('hidden');
+      }
+    }
+
+    // Unit
+    if (groupPinCompUnit) {
+      if (isSensor) {
+        groupPinCompUnit.classList.remove('hidden');
+        if (driver === 'dht11' || driver === 'dht22' || driver === 'ds18b20' || driver === 'sht30' || driver === 'aht10') {
+          if (!pinCompUnit.value) pinCompUnit.placeholder = '°C';
+        } else if (driver === 'bh1750') {
+          if (!pinCompUnit.value) pinCompUnit.placeholder = 'Lux';
+        } else if (driver === 'bmp280') {
+          if (!pinCompUnit.value) pinCompUnit.placeholder = 'hPa';
+        } else if (driver === 'analog') {
+          if (!pinCompUnit.value) pinCompUnit.placeholder = '%, ADC, V';
+        }
+      } else {
+        groupPinCompUnit.classList.add('hidden');
+        pinCompUnit.value = '';
+      }
+    }
+
+    // Reading Interval: hanya untuk sensor
+    if (groupPinReadInterval) {
+      if (isSensor) {
+        groupPinReadInterval.classList.remove('hidden');
+        if (!pinReadInterval.value) pinReadInterval.value = '5';
+      } else {
+        groupPinReadInterval.classList.add('hidden');
+      }
+    }
+
+    // Dynamic placeholders
+    if (pinCompName) {
+      if (driver === 'switch') pinCompName.placeholder = 'Misal: Lampu Teras, Pompa Air';
+      else if (driver === 'dimmer') pinCompName.placeholder = 'Misal: Dimmer Lampu, Speed Kipas';
+      else if (driver === 'servo') pinCompName.placeholder = 'Misal: Palang Pintu, Motor Servo';
+      else if (driver === 'rgb_led') pinCompName.placeholder = 'Misal: Strip NeoPixel, LED RGB';
+      else if (driver === 'buzzer') pinCompName.placeholder = 'Misal: Alarm Buzzer, Sirine';
+      else if (driver === 'digital_in') pinCompName.placeholder = 'Misal: Sensor PIR Gerak, Saklar Pintu';
+      else if (driver === 'analog') pinCompName.placeholder = 'Misal: Kelembapan Tanah, Sensor LDR';
+      else if (driver === 'dht11' || driver === 'dht22') pinCompName.placeholder = 'Misal: Suhu & Kelembapan Ruang';
+      else if (driver === 'ds18b20') pinCompName.placeholder = 'Misal: Sensor Suhu Waterproof';
+      else if (driver === 'bmp280') pinCompName.placeholder = 'Misal: Tekanan & Suhu Udara';
+      else if (driver === 'bh1750') pinCompName.placeholder = 'Misal: Intensitas Cahaya Ruang';
+      else if (driver === 'mpu6050') pinCompName.placeholder = 'Misal: Sensor Kemiringan 3D';
+      else pinCompName.placeholder = 'Nama Komponen';
+    }
+  }
+
+  driverSelect.addEventListener('change', updateFields);
+  updateFields();
+}
+
 function renderActivePinsList() {
   const container = document.getElementById('activePinsList');
   if (!container) return;
 
   const dev = state.getActiveDevice();
-  if (!dev || !Array.isArray(dev.components) || dev.components.length === 0) {
-    container.innerHTML = '<p class="empty-schedule-msg">Belum ada pin/komponen terdaftar</p>';
+  const countEl = document.getElementById('countActiveComponents');
+  const components = (dev && Array.isArray(dev.components)) ? dev.components : [];
+
+  if (countEl) {
+    countEl.textContent = components.length;
+  }
+
+  if (components.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state-card" style="text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 0.85rem;">
+        <span style="display: block; font-size: 1.5rem; margin-bottom: 6px;">🔌</span>
+        <span>Belum ada pin atau modul terpasang pada perangkat ini.</span>
+        <p style="margin-top: 6px; font-size: 0.75rem; color: var(--text-subtle);">Buka tab <strong>+ Tambah Pin / Modul</strong> di atas untuk menambahkan saklar atau sensor.</p>
+      </div>
+    `;
     return;
   }
 
   container.innerHTML = '';
-  dev.components.forEach(c => {
+  components.forEach(c => {
+    const isI2c = c.pin < 0 || ['bmp280', 'bh1750', 'sht30', 'aht10', 'mpu6050'].includes(c.driver);
+    const isAnalog = c.driver === 'analog' || c.pin === 17;
+
+    let badgeClass = 'pin-badge';
+    if (isI2c) badgeClass += ' pin-i2c';
+    else if (isAnalog) badgeClass += ' pin-analog';
+
+    const pinLabel = isI2c ? 'I2C Bus' : (isAnalog ? 'A0 (ADC)' : `GPIO ${c.pin}`);
+    const displayValue = (c.value !== undefined && c.value !== null && c.value !== '') ? `${c.value}${c.unit ? ' ' + c.unit : ''}` : '-';
+
     const item = document.createElement('div');
-    item.className = 'pin-item-row';
+    item.className = 'pin-item-card';
     item.innerHTML = `
       <div class="pin-item-left">
-        <span class="pin-num-badge">${c.pin >= 0 ? `GPIO ${c.pin}` : 'I2C'}</span>
-        <div class="pin-info-text">
-          <span class="pin-name">${escapeHtml(c.name || c.id)}</span>
-          <span class="pin-driver">${escapeHtml(c.driver || c.type)} &bull; ${escapeHtml(c.value || '0')} ${escapeHtml(c.unit || '')}</span>
+        <span class="${badgeClass}">${escapeHtml(pinLabel)}</span>
+        <div class="pin-item-info">
+          <span class="pin-item-name">${escapeHtml(c.name || c.id)}</span>
+          <span class="pin-item-type">${escapeHtml(c.driver || c.type || 'Driver')} &bull; <code>${escapeHtml(c.id)}</code></span>
         </div>
       </div>
-      <button type="button" class="btn-del-pin danger" title="Hapus">🗑️</button>
+      <div class="pin-item-right">
+        <span class="pin-live-val">${escapeHtml(displayValue)}</span>
+        <button type="button" class="btn-delete-pin" title="Hapus Komponen">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
+      </div>
     `;
 
-    item.querySelector('.btn-del-pin').addEventListener('click', () => {
+    item.querySelector('.btn-delete-pin').addEventListener('click', () => {
       if (!confirm(`Hapus komponen "${c.name || c.id}"?`)) return;
 
       fetch(`/api/devices/${encodeURIComponent(state.activeDeviceId)}/components/${encodeURIComponent(c.id)}`, {
@@ -255,11 +382,17 @@ function renderActivePinsList() {
       .then(r => r.json())
       .then(res => {
         if (res.success) {
-          showToast(`Komponen ${c.id} dihapus`);
+          showToast(`Komponen "${c.name || c.id}" berhasil dihapus`);
+          if (dev && Array.isArray(dev.components)) {
+            dev.components = dev.components.filter(item => item.id !== c.id);
+          }
           renderActivePinsList();
           renderComponentsGrid();
+        } else {
+          showToast(res.message || 'Gagal menghapus komponen', false);
         }
-      });
+      })
+      .catch(err => showToast(err.message, false));
     });
 
     container.appendChild(item);

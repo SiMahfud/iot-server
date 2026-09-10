@@ -297,7 +297,9 @@ function renderDeviceSelect() {
 
   let html = '';
   devices.forEach(d => {
-    html += `<option value="${escapeHtml(d.deviceId)}">${escapeHtml(d.name || d.deviceId)} (${d.isOnline ? 'Online' : 'Offline'})</option>`;
+    const statusText = d.isOnline ? 'Online' : 'Offline';
+    const rawName = (d.name || d.deviceId).trim();
+    html += `<option value="${escapeHtml(d.deviceId)}">${escapeHtml(rawName)} • ${statusText}</option>`;
   });
 
   deviceSelect.innerHTML = html;

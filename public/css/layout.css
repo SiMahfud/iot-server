@@ -4,7 +4,7 @@
 .app-container {
   width: 100%;
   max-width: 520px;
-  padding: 14px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
+  padding: 14px 14px calc(100px + env(safe-area-inset-bottom, 0px)) 14px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -121,13 +121,13 @@
 ========================================== */
 .quick-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
-@media (max-width: 420px) {
+@media (min-width: 640px) {
   .quick-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -135,10 +135,11 @@
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 10px 8px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-width: 0;
   transition: var(--transition-smooth);
 }
 
@@ -148,8 +149,8 @@
 }
 
 .stat-icon-wrapper {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -180,11 +181,12 @@
 .stat-details {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   overflow: hidden;
 }
 
 .stat-value {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -193,9 +195,11 @@
 }
 
 .stat-label {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 /* Device Selector Bar */
@@ -204,7 +208,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -217,7 +221,7 @@
   align-items: center;
   gap: 8px;
   flex: 1;
-  min-width: 170px;
+  min-width: 200px;
 }
 
 .device-bar-label {
@@ -230,10 +234,10 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
-  padding: 4px 8px;
+  padding: 5px 8px;
   color: var(--text-main);
   font-family: var(--font-family);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 600;
   outline: none;
   cursor: pointer;
@@ -245,7 +249,22 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 500px) {
+  .device-bar-left {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .device-bar-right {
+    width: 100%;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    row-gap: 6px;
+  }
 }
 
 .device-dropdown option {
@@ -350,12 +369,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
+  padding: 11px 8px;
   border-radius: var(--radius-md);
   font-family: var(--font-family);
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
   transition: var(--transition-smooth);
   border: 1px solid transparent;
 }
