@@ -7,6 +7,7 @@ import { state, escapeHtml, showToast } from '../state.js';
 import { sendWs } from '../wsClient.js';
 
 let selectedDays = [];
+let editSelectedDays = [];
 
 export function initSchedulerUi() {
   const form = document.getElementById('scheduleForm');
@@ -19,7 +20,14 @@ export function initSchedulerUi() {
 
   if (!form) return;
 
-  state.on('devicesChange', () => populateSchedulerDeviceDropdown());
+  state.on('devicesChange', () => {
+    populateSchedulerDeviceDropdown();
+    const modal = document.getElementById('modalEditSchedule');
+    if (modal && !modal.classList.contains('hidden')) {
+      const editDev = document.getElementById('editSchedDevice');
+      if (editDev) populateEditDeviceDropdown(editDev.value);
+    }
+  });
   state.on('schedulesChange', () => {
     renderScheduleList();
     renderTimerGrid();
@@ -53,6 +61,7 @@ export function initSchedulerUi() {
       chip.addEventListener('click', () => {
         const day = parseInt(chip.dataset.day);
         chip.classList.toggle('active');
+        chip.classList.toggle('selected');
         if (chip.classList.contains('active')) {
           if (!selectedDays.includes(day)) selectedDays.push(day);
         } else {
@@ -127,7 +136,7 @@ export function initSchedulerUi() {
         showToast('Jadwal baru berhasil disimpan!');
         form.reset();
         selectedDays = [];
-        if (daysChips) daysChips.querySelectorAll('.day-chip').forEach(c => c.classList.remove('active'));
+        if (daysChips) daysChips.querySelectorAll('.day-chip').forEach(c => c.classList.remove('active', 'selected'));
         if (targetValGroup) targetValGroup.classList.add('hidden');
         loadSchedules();
       } else {
@@ -138,6 +147,7 @@ export function initSchedulerUi() {
   });
 
   populateSchedulerDeviceDropdown();
+  initEditScheduleModal();
   loadSchedules();
 }
 
@@ -248,17 +258,29 @@ export function renderScheduleList() {
         </div>
       </div>
       <div class="sched-item-actions">
-        <label class="switch-control">
+        <label class="switch-control" title="${s.enabled ? 'Nonaktifkan Jadwal' : 'Aktifkan Jadwal'}">
           <input type="checkbox" ${s.enabled ? 'checked' : ''} data-sched-id="${s.id}">
           <span class="slider"></span>
         </label>
-        <button type="button" class="btn-card-action danger btn-del-sched" title="Hapus Jadwal">🗑️</button>
+        <button type="button" class="btn-card-action btn-edit-sched" title="Edit Jadwal" data-sched-id="${s.id}">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" style="pointer-events: none;">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
+        <button type="button" class="btn-card-action danger btn-del-sched" title="Hapus Jadwal" data-sched-id="${s.id}">
+          <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2" fill="none" style="pointer-events: none;">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
       </div>
     `;
 
     const chk = item.querySelector('input[type="checkbox"]');
     chk.addEventListener('change', () => toggleScheduleEnabled(s.id, chk.checked));
 
+    item.querySelector('.btn-edit-sched').addEventListener('click', () => openEditScheduleModal(s));
     item.querySelector('.btn-del-sched').addEventListener('click', () => deleteSchedule(s.id, s.label));
 
     listEl.appendChild(item);
@@ -362,4 +384,264 @@ export function renderTimerGrid() {
 
     grid.appendChild(card);
   });
+}
+
+// ==========================================
+// Edit Schedule Modal Handlers
+// ==========================================
+
+export function initEditScheduleModal() {
+  const modal = document.getElementById('modalEditSchedule');
+  const formEdit = document.getElementById('formEditSchedule');
+  const btnClose = document.getElementById('btnCloseEditSchedule');
+  const btnCancel = document.getElementById('btnCancelEditSchedule');
+  const editDeviceSelect = document.getElementById('editSchedDevice');
+  const editActionSelect = document.getElementById('editSchedAction');
+  const editDaysChips = document.getElementById('editDaysChips');
+  const editEnabled = document.getElementById('editSchedEnabled');
+  const editEnabledText = document.getElementById('editSchedEnabledText');
+
+  if (!modal || !formEdit) return;
+
+  if (btnClose) btnClose.addEventListener('click', closeEditScheduleModal);
+  if (btnCancel) btnCancel.addEventListener('click', closeEditScheduleModal);
+
+  // Close on backdrop click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeEditScheduleModal();
+  });
+
+  // Close on Escape key
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeEditScheduleModal();
+    }
+  });
+
+  // Device dropdown change in modal
+  if (editDeviceSelect) {
+    editDeviceSelect.addEventListener('change', () => {
+      populateEditComponentDropdown(editDeviceSelect.value);
+    });
+  }
+
+  // Action change in modal
+  if (editActionSelect) {
+    editActionSelect.addEventListener('change', () => {
+      updateEditActionFields(editActionSelect.value);
+    });
+  }
+
+  // Day chip toggle in modal
+  if (editDaysChips) {
+    editDaysChips.querySelectorAll('.day-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const day = parseInt(chip.dataset.day);
+        chip.classList.toggle('active');
+        chip.classList.toggle('selected');
+        if (chip.classList.contains('active')) {
+          if (!editSelectedDays.includes(day)) editSelectedDays.push(day);
+        } else {
+          editSelectedDays = editSelectedDays.filter(d => d !== day);
+        }
+      });
+    });
+  }
+
+  // Enabled toggle text
+  if (editEnabled && editEnabledText) {
+    editEnabled.addEventListener('change', () => {
+      const active = editEnabled.checked;
+      editEnabledText.textContent = active ? 'Aktif' : 'Nonaktif';
+      editEnabledText.style.color = active ? 'var(--primary-glow)' : 'var(--text-subtle)';
+    });
+  }
+
+  // Form submit handler
+  formEdit.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('editSchedId').value;
+    const deviceId = editDeviceSelect.value;
+    const compSelect = document.getElementById('editSchedComponent');
+    const componentId = compSelect ? compSelect.value : '';
+    const action = editActionSelect.value;
+    const time = document.getElementById('editSchedTime').value;
+    const duration = parseInt(document.getElementById('editSchedDuration').value) || 0;
+    const targetValueInput = document.getElementById('editSchedTargetValue');
+    const targetValue = targetValueInput ? targetValueInput.value : '';
+    const label = document.getElementById('editSchedLabel').value.trim();
+    const enabled = editEnabled ? editEnabled.checked : true;
+
+    if (!id || !deviceId || !componentId || !time) {
+      showToast('Harap lengkapi target perangkat, komponen, dan jam eksekusi', false);
+      return;
+    }
+
+    const payload = {
+      deviceId,
+      componentId,
+      action,
+      time,
+      days: editSelectedDays,
+      duration,
+      targetValue,
+      label,
+      enabled
+    };
+
+    fetch(`/api/schedules/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.authToken}`
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showToast('Jadwal berhasil diperbarui!');
+        closeEditScheduleModal();
+        loadSchedules();
+      } else {
+        showToast(res.message || 'Gagal memperbarui jadwal', false);
+      }
+    })
+    .catch(err => showToast(err.message, false));
+  });
+}
+
+export function openEditScheduleModal(schedule) {
+  const modal = document.getElementById('modalEditSchedule');
+  if (!modal || !schedule) return;
+
+  const idInput = document.getElementById('editSchedId');
+  const actionSelect = document.getElementById('editSchedAction');
+  const timeInput = document.getElementById('editSchedTime');
+  const durationInput = document.getElementById('editSchedDuration');
+  const labelInput = document.getElementById('editSchedLabel');
+  const enabledInput = document.getElementById('editSchedEnabled');
+  const enabledText = document.getElementById('editSchedEnabledText');
+  const subtitle = document.getElementById('editSchedSubtitle');
+
+  if (idInput) idInput.value = schedule.id;
+  if (subtitle) {
+    subtitle.textContent = `${schedule.label || schedule.componentId || 'Jadwal'} (ID: ${schedule.id})`;
+  }
+
+  populateEditDeviceDropdown(schedule.deviceId);
+  populateEditComponentDropdown(schedule.deviceId, schedule.componentId || (schedule.channel ? `relay_${schedule.channel}` : ''));
+
+  if (actionSelect) {
+    actionSelect.value = schedule.action || 'on';
+  }
+  updateEditActionFields(schedule.action || 'on', schedule.targetValue);
+
+  if (timeInput) timeInput.value = schedule.time || '';
+  if (durationInput) durationInput.value = schedule.duration ? schedule.duration : '';
+  if (labelInput) labelInput.value = schedule.label || '';
+
+  const isEnabled = schedule.enabled !== false;
+  if (enabledInput) {
+    enabledInput.checked = isEnabled;
+  }
+  if (enabledText) {
+    enabledText.textContent = isEnabled ? 'Aktif' : 'Nonaktif';
+    enabledText.style.color = isEnabled ? 'var(--primary-glow)' : 'var(--text-subtle)';
+  }
+
+  // Days chips
+  editSelectedDays = Array.isArray(schedule.days) ? [...schedule.days] : [];
+  const daysChips = document.getElementById('editDaysChips');
+  if (daysChips) {
+    daysChips.querySelectorAll('.day-chip').forEach(chip => {
+      const day = parseInt(chip.dataset.day);
+      if (editSelectedDays.includes(day)) {
+        chip.classList.add('active', 'selected');
+      } else {
+        chip.classList.remove('active', 'selected');
+      }
+    });
+  }
+
+  modal.classList.remove('hidden');
+}
+
+export function closeEditScheduleModal() {
+  const modal = document.getElementById('modalEditSchedule');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+function populateEditDeviceDropdown(selectedDeviceId) {
+  const deviceSelect = document.getElementById('editSchedDevice');
+  if (!deviceSelect) return;
+
+  const devices = Object.values(state.devices);
+  let html = '<option value="">Pilih Perangkat...</option>';
+
+  devices.forEach(d => {
+    const isSel = d.deviceId === selectedDeviceId ? 'selected' : '';
+    html += `<option value="${escapeHtml(d.deviceId)}" ${isSel}>${escapeHtml(d.name || d.deviceId)}</option>`;
+  });
+
+  deviceSelect.innerHTML = html;
+  if (selectedDeviceId) {
+    deviceSelect.value = selectedDeviceId;
+  }
+}
+
+function populateEditComponentDropdown(deviceId, selectedCompId = '') {
+  const compSelect = document.getElementById('editSchedComponent');
+  if (!compSelect) return;
+
+  if (!deviceId || !state.devices[deviceId]) {
+    compSelect.innerHTML = '<option value="">Pilih Komponen...</option>';
+    return;
+  }
+
+  const dev = state.devices[deviceId];
+  const comps = Array.isArray(dev.components) ? dev.components : [];
+
+  const controllable = comps.filter(c => 
+    ['switch', 'dimmer', 'servo', 'rgb_led', 'buzzer'].includes(c.type) ||
+    ['switch', 'dimmer', 'servo', 'rgb_led', 'buzzer'].includes(c.driver)
+  );
+
+  let html = '<option value="">Pilih Komponen Target...</option>';
+  controllable.forEach(c => {
+    const isSel = c.id === selectedCompId ? 'selected' : '';
+    html += `<option value="${escapeHtml(c.id)}" ${isSel}>${escapeHtml(c.name || c.id)} [${c.type || c.driver}]</option>`;
+  });
+
+  // Fallback jika komponen yang tersimpan berupa custom / relay lama
+  if (selectedCompId && !controllable.some(c => c.id === selectedCompId)) {
+    html += `<option value="${escapeHtml(selectedCompId)}" selected>${escapeHtml(selectedCompId)} (Tersimpan)</option>`;
+  }
+
+  compSelect.innerHTML = html;
+  if (selectedCompId) {
+    compSelect.value = selectedCompId;
+  }
+}
+
+function updateEditActionFields(action, targetValue = '') {
+  const targetValGroup = document.getElementById('editSchedTargetValueGroup');
+  const targetValLabel = document.getElementById('editSchedTargetValueLabel');
+  const targetValInput = document.getElementById('editSchedTargetValue');
+  if (!targetValGroup) return;
+
+  if (action === 'value') {
+    targetValGroup.classList.remove('hidden');
+    if (targetValLabel) targetValLabel.textContent = 'Nilai PWM Target (0-100%)';
+    if (targetValInput) targetValInput.value = targetValue !== undefined ? targetValue : '';
+  } else if (action === 'angle') {
+    targetValGroup.classList.remove('hidden');
+    if (targetValLabel) targetValLabel.textContent = 'Sudut Servo Target (0-180°)';
+    if (targetValInput) targetValInput.value = targetValue !== undefined ? targetValue : '';
+  } else {
+    targetValGroup.classList.add('hidden');
+  }
 }

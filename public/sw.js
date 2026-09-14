@@ -1,5 +1,5 @@
 // Service Worker untuk PWA Offline Caching
-const CACHE_NAME = 'agygateway-v5.1';
+const CACHE_NAME = 'agygateway-v5.2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

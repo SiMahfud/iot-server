@@ -363,7 +363,8 @@
   transition: var(--transition-smooth);
 }
 
-.day-chip.selected {
+.day-chip.selected,
+.day-chip.active {
   background: var(--primary-glow);
   color: #042f2e;
   border-color: var(--primary-glow);
@@ -509,12 +510,14 @@
   transition: var(--transition-smooth);
 }
 
-.btn-edit-schedule:hover {
+.btn-edit-schedule:hover,
+.btn-card-action.btn-edit-sched:hover {
   color: var(--accent-blue);
   background: var(--accent-blue-soft);
 }
 
-.btn-delete-schedule:hover {
+.btn-delete-schedule:hover,
+.btn-card-action.danger.btn-del-sched:hover {
   color: var(--danger-glow);
   background: var(--danger-soft);
 }

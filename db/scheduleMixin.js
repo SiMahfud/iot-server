@@ -89,6 +89,21 @@ module.exports = {
     if (!merged.componentId && merged.channel) {
       merged.componentId = `relay_${merged.channel}`;
     }
+    if (fields.componentId && fields.channel === undefined) {
+      if (/^relay_\d+$/i.test(fields.componentId)) {
+        merged.channel = parseInt(fields.componentId.replace(/\D/g, ''));
+      } else {
+        merged.channel = 0;
+      }
+    } else if (fields.channel !== undefined) {
+      merged.channel = parseInt(fields.channel) || 0;
+    }
+
+    if (merged.deviceId) {
+      this.ensureDeviceExists(merged.deviceId);
+    }
+
+    const daysArr = Array.isArray(merged.days) ? merged.days : (typeof merged.days === 'string' ? JSON.parse(merged.days || '[]') : []);
 
     this.db.prepare(`
       UPDATE schedules SET
@@ -109,10 +124,10 @@ module.exports = {
       merged.channel || 0,
       merged.action,
       merged.time,
-      JSON.stringify(merged.days || []),
-      merged.duration || 0,
-      merged.enabled !== false ? 1 : 0,
-      merged.label,
+      JSON.stringify(daysArr),
+      parseInt(merged.duration) || 0,
+      (merged.enabled === true || merged.enabled === 1 || merged.enabled === '1' || merged.enabled === 'true') ? 1 : 0,
+      merged.label || (merged.componentId ? `Jadwal ${merged.componentId}` : `Jadwal Relay #${merged.channel}`),
       merged.targetValue !== undefined ? String(merged.targetValue) : '',
       id
     );

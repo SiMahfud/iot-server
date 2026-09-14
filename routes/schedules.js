@@ -15,6 +15,14 @@ router.get('/', (req, res) => {
   res.json({ success: true, data: schedules });
 });
 
+// Ambil satu jadwal by ID
+router.get('/:id', (req, res) => {
+  const { id } = req.params;
+  const schedule = schedulerManager.getScheduleById(id);
+  if (!schedule) return res.status(404).json({ success: false, message: 'Jadwal tidak ditemukan' });
+  res.json({ success: true, data: schedule });
+});
+
 // Tambah jadwal baru
 router.post('/', (req, res) => {
   const { deviceId, channel, componentId, action, time, days, label, duration, targetValue } = req.body;
@@ -36,6 +44,12 @@ router.post('/', (req, res) => {
 // Update jadwal
 router.put('/:id', (req, res) => {
   const { id } = req.params;
+  const { time } = req.body;
+
+  if (time && !/^\d{2}:\d{2}$/.test(time)) {
+    return res.status(400).json({ success: false, message: 'Format waktu harus HH:MM' });
+  }
+
   const updated = schedulerManager.updateSchedule(id, req.body);
   if (!updated) return res.status(404).json({ success: false, message: 'Jadwal tidak ditemukan' });
 

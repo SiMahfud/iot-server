@@ -1351,6 +1351,113 @@ void loop() {
   </div>
 
   <!-- ==========================================
+       MODAL: EDIT JADWAL OTOMATIS
+  ========================================== -->
+  <div id="modalEditSchedule" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-md">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title">✏️ Edit Jadwal Otomatis</h3>
+          <span class="modal-subtitle" id="editSchedSubtitle">Perbarui konfigurasi waktu dan aksi jadwal</span>
+        </div>
+        <button type="button" id="btnCloseEditSchedule" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <form id="formEditSchedule" class="schedule-form" style="padding: 0; background: transparent; border: none; box-shadow: none;">
+        <input type="hidden" id="editSchedId">
+        <div class="modal-body modal-scrollable" style="padding: 20px; gap: 14px;">
+          <div class="sched-form-row">
+            <div class="sched-field">
+              <label class="sched-label">Perangkat Target</label>
+              <select id="editSchedDevice" class="sched-input" required>
+                <option value="">Pilih Perangkat...</option>
+              </select>
+            </div>
+            <div class="sched-field">
+              <label class="sched-label">Komponen Target</label>
+              <select id="editSchedComponent" class="sched-input" required>
+                <option value="">Pilih Komponen...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="sched-form-row">
+            <div class="sched-field">
+              <label class="sched-label">Aksi</label>
+              <select id="editSchedAction" class="sched-input" required>
+                <option value="on">Nyalakan (ON)</option>
+                <option value="off">Matikan (OFF)</option>
+                <option value="toggle">Toggle</option>
+                <option value="value">Set Nilai (Dimmer PWM)</option>
+                <option value="angle">Set Sudut (Servo 0-180°)</option>
+              </select>
+            </div>
+            <div class="sched-field hidden" id="editSchedTargetValueGroup">
+              <label class="sched-label" id="editSchedTargetValueLabel">Nilai Target (PWM / Sudut)</label>
+              <input type="number" id="editSchedTargetValue" class="sched-input" placeholder="Contoh: 90">
+            </div>
+          </div>
+
+          <div class="sched-form-row">
+            <div class="sched-field">
+              <label class="sched-label">Jam Eksekusi</label>
+              <input type="time" id="editSchedTime" class="sched-input" required>
+            </div>
+            <div class="sched-field" id="editSchedDurationGroup">
+              <label class="sched-label">Durasi Nyala (Menit)</label>
+              <input type="number" id="editSchedDuration" class="sched-input" min="1" max="1440" placeholder="Auto-off (opsional)">
+            </div>
+          </div>
+
+          <div class="sched-field">
+            <label class="sched-label">Hari Eksekusi (kosongkan = setiap hari)</label>
+            <div class="days-chips" id="editDaysChips">
+              <button type="button" class="day-chip" data-day="1">Sen</button>
+              <button type="button" class="day-chip" data-day="2">Sel</button>
+              <button type="button" class="day-chip" data-day="3">Rab</button>
+              <button type="button" class="day-chip" data-day="4">Kam</button>
+              <button type="button" class="day-chip" data-day="5">Jum</button>
+              <button type="button" class="day-chip" data-day="6">Sab</button>
+              <button type="button" class="day-chip" data-day="0">Min</button>
+            </div>
+          </div>
+
+          <div class="sched-field">
+            <label class="sched-label">Label Jadwal (opsional)</label>
+            <input type="text" id="editSchedLabel" class="sched-input" placeholder="Misal: Lampu Teras Otomatis" maxlength="40">
+          </div>
+
+          <div class="sched-field" style="display: flex; align-items: center; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--border-color); margin-top: 4px;">
+            <div>
+              <label class="sched-label" style="margin-bottom: 2px;">Status Jadwal</label>
+              <span id="editSchedEnabledText" style="font-size: 0.78rem; color: var(--primary-glow); font-weight: 600;">Aktif</span>
+            </div>
+            <label class="switch-control">
+              <input type="checkbox" id="editSchedEnabled" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnCancelEditSchedule" class="btn-modal-cancel">Batal</button>
+          <button type="submit" id="btnSaveEditSchedule" class="btn-modal-confirm" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>Simpan Perubahan</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
        MODAL: PEMELIHARAAN PERANGKAT (REBOOT & RESET)
   ========================================== -->
   <div id="modalDeviceMaintenance" class="modal-backdrop hidden">
