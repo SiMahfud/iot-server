@@ -69,13 +69,21 @@ class DeviceManager {
     // Daftarkan komponen yang dikirim dari manifest (jika hardware mengirim komponen awal)
     if (Array.isArray(payload.components) && payload.components.length > 0) {
       payload.components.forEach(comp => {
-        db.upsertComponent(deviceId, comp);
+        const compId = comp.id || comp.componentId;
+        const existingComp = db.getComponent(deviceId, compId);
+
+        // Pertahankan nama kustom yang sudah diatur pengguna di database agar tidak tertimpa nama bawaan hardware
+        const compToSave = existingComp && existingComp.name ? { ...comp, name: existingComp.name } : comp;
+        db.upsertComponent(deviceId, compToSave);
 
         // Jika komponen bertipe switch dengan id relay_X, sinkronkan ke tabel relays lama
         if (comp.type === 'switch' && /^relay_\d+$/i.test(comp.id)) {
           const ch = parseInt(comp.id.replace(/\D/g, '')) || 1;
           const stateBool = comp.value === 'true' || comp.value === true || comp.value === '1';
-          db.upsertRelay(deviceId, ch, comp.name || `Saklar ${ch}`, stateBool);
+          const existingRelays = dev.relays || [];
+          const existingR = existingRelays.find(x => x.channel === ch);
+          const relayName = (existingComp && existingComp.name) || (existingR && existingR.name) || comp.name || `Saklar ${ch}`;
+          db.upsertRelay(deviceId, ch, relayName, stateBool);
         }
       });
     }
@@ -235,12 +243,16 @@ class DeviceManager {
           });
         }
         // Simpan status relay ke SQLite
-        db.upsertRelay(deviceId, incoming.channel, existing ? existing.name : `Saklar ${incoming.channel}`, incoming.state);
+        const compId = `relay_${incoming.channel}`;
+        const existingComp = db.getComponent(deviceId, compId);
+        const relayName = (existingComp && existingComp.name) || (existing ? existing.name : `Saklar ${incoming.channel}`);
+
+        db.upsertRelay(deviceId, incoming.channel, relayName, incoming.state);
 
         // Sinkronkan ke device_components
         db.upsertComponent(deviceId, {
-          id: `relay_${incoming.channel}`,
-          name: existing ? existing.name : `Saklar ${incoming.channel}`,
+          id: compId,
+          name: relayName,
           type: 'switch',
           value: incoming.state ? 'true' : 'false',
           access: 'rw'
@@ -316,7 +328,19 @@ class DeviceManager {
       db.renameComponent(deviceId, compId, trimmed);
       if (Array.isArray(dev.components)) {
         const comp = dev.components.find(c => c.id === compId || c.componentId === compId);
-        if (comp) comp.name = trimmed;
+        if (comp) {
+          comp.name = trimmed;
+          const socket = this.getSocket(deviceId);
+          if (socket && socket.readyState === 1 && comp.pin !== undefined && comp.pin !== -1) {
+            try {
+              socket.send(JSON.stringify({
+                action: 'configure_pin',
+                ...comp,
+                name: trimmed
+              }));
+            } catch (e) {}
+          }
+        }
       }
 
       db.addLog(deviceId, 'rename_relay', `Nama Saklar #${ch} diubah menjadi "${trimmed}"`);
@@ -331,9 +355,10 @@ class DeviceManager {
       const trimmed = newName.trim();
       const success = db.renameComponent(deviceId, componentId, trimmed);
       if (success) {
+        let targetComp = null;
         if (Array.isArray(dev.components)) {
-          const c = dev.components.find(x => x.id === componentId || x.componentId === componentId);
-          if (c) c.name = trimmed;
+          targetComp = dev.components.find(x => x.id === componentId || x.componentId === componentId);
+          if (targetComp) targetComp.name = trimmed;
         }
 
         // Jika komponen bertipe relay_X, sinkronkan juga ke tabel relays dan dev.relays
@@ -349,6 +374,20 @@ class DeviceManager {
               dev.relays.push({ channel: ch, name: trimmed, state: false });
               dev.relays.sort((a, b) => a.channel - b.channel);
             }
+          }
+        }
+
+        // Sinkronkan ke hardware mikrokontroler jika online agar memori flash ESP juga tersimpan
+        const socket = this.getSocket(deviceId);
+        if (socket && socket.readyState === 1 && targetComp && targetComp.pin !== undefined && targetComp.pin !== -1) {
+          try {
+            socket.send(JSON.stringify({
+              action: 'configure_pin',
+              ...targetComp,
+              name: trimmed
+            }));
+          } catch (e) {
+            console.warn(`[DYNAMIC PINS] Gagal mengirim configure_pin saat rename ke ${deviceId}:`, e.message);
           }
         }
 

@@ -44,7 +44,11 @@ module.exports = {
     const info = this.db.prepare(`
       UPDATE device_components SET name = ? WHERE deviceId = ? AND componentId = ?
     `).run(newName, deviceId, componentId);
-    return info.changes > 0;
+    const success = info.changes > 0;
+    if (success && typeof this.syncStateToJson === 'function') {
+      this.syncStateToJson();
+    }
+    return success;
   },
 
   deleteComponent(deviceId, componentId) {
