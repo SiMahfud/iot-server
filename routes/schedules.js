@@ -25,7 +25,7 @@ router.get('/:id', (req, res) => {
 
 // Tambah jadwal baru
 router.post('/', (req, res) => {
-  const { deviceId, channel, componentId, action, time, days, label, duration, targetValue } = req.body;
+  const { deviceId, channel, componentId, action, time, days, label, duration, durationUnit, targetValue } = req.body;
 
   if (!deviceId || !time || (!channel && !componentId)) {
     return res.status(400).json({ success: false, message: 'deviceId, time, dan channel atau componentId wajib diisi' });
@@ -36,7 +36,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ success: false, message: 'Format waktu harus HH:MM' });
   }
 
-  const schedule = schedulerManager.addSchedule({ deviceId, channel, componentId, action, time, days, label, duration, targetValue });
+  const schedule = schedulerManager.addSchedule({ deviceId, channel, componentId, action, time, days, label, duration, durationUnit, targetValue });
   broadcastToBrowsers({ type: 'SCHEDULES_UPDATE', schedules: schedulerManager.getSchedules() });
   res.json({ success: true, data: schedule });
 });

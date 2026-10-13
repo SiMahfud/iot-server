@@ -84,7 +84,8 @@ class SchedulerManager {
       action: data.action || 'on',          // 'on' | 'off' | 'toggle' | 'value' | 'angle'
       time: data.time,                       // 'HH:MM'
       days: Array.isArray(data.days) ? data.days : [], // [0-6], kosong = setiap hari
-      duration: data.duration ? parseInt(data.duration) : 0, // durasi nyala dalam menit (opsional)
+      duration: data.duration ? parseInt(data.duration) : 0, // durasi nyala (opsional)
+      durationUnit: data.durationUnit === 's' ? 's' : 'm',
       targetValue: data.targetValue !== undefined ? String(data.targetValue) : '',
       enabled: data.enabled !== false,
       label: data.label || (componentId ? `Jadwal ${componentId}` : `Jadwal Relay #${data.channel || 1}`),
@@ -99,7 +100,8 @@ class SchedulerManager {
     }
 
     db.addLog(schedule.deviceId, 'schedule_added', `Jadwal "${schedule.label}" dibuat (${schedule.time})`);
-    console.log(`[SCHEDULER] Jadwal baru disimpan ke SQLite: ${schedule.label} (${schedule.id})${schedule.duration ? ` [Durasi: ${schedule.duration}m]` : ''}`);
+    const unitStr = schedule.durationUnit === 's' ? 's' : 'm';
+    console.log(`[SCHEDULER] Jadwal baru disimpan ke SQLite: ${schedule.label} (${schedule.id})${schedule.duration ? ` [Durasi: ${schedule.duration}${unitStr}]` : ''}`);
     return created;
   }
 
@@ -254,6 +256,9 @@ class SchedulerManager {
     // Kirim perintah ke Hardware sesuai tipe perangkat
     let payload;
     const isLegacyRelayDevice = dev && (dev.type === '4-relay' || (!dev.components || dev.components.length === 0));
+    const isSec = schedule.durationUnit === 's';
+    const durationSec = isSec ? schedule.duration : (schedule.duration * 60);
+
     if (isLegacyRelayDevice && schedule.channel) {
       payload = {
         action: 'set_relay',
@@ -262,7 +267,7 @@ class SchedulerManager {
         state: state
       };
       if (state === true && schedule.duration && schedule.duration > 0) {
-        payload.duration = schedule.duration * 60;
+        payload.duration = durationSec;
       }
     } else if (compId) {
       payload = {
@@ -272,7 +277,7 @@ class SchedulerManager {
         value: state
       };
       if (state === true && schedule.duration && schedule.duration > 0) {
-        payload.duration = schedule.duration * 60;
+        payload.duration = durationSec;
       }
     } else {
       payload = {
@@ -282,13 +287,14 @@ class SchedulerManager {
         state: state
       };
       if (state === true && schedule.duration && schedule.duration > 0) {
-        payload.duration = schedule.duration * 60;
+        payload.duration = durationSec;
       }
     }
 
     targetSocket.send(JSON.stringify(payload));
 
-    const durationInfo = (state === true && schedule.duration > 0) ? ` selama ${schedule.duration} menit` : '';
+    const unitLabel = schedule.durationUnit === 's' ? 'detik' : 'menit';
+    const durationInfo = (state === true && schedule.duration > 0) ? ` selama ${schedule.duration} ${unitLabel}` : '';
     const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     console.log(`[SCHEDULER] ⏰ Jadwal "${schedule.label}" dijalankan -> ${compId || `Relay #${schedule.channel}`} ${state ? 'ON' : 'OFF'}${durationInfo} [${now}]`);
 
@@ -313,15 +319,17 @@ class SchedulerManager {
       this._broadcastFn({
         type: 'NOTIFICATION',
         level: 'info',
-        message: `⏰ Jadwal "${schedule.label}" dijalankan — Relay #${schedule.channel} ${state ? 'ON' : 'OFF'}${durationInfo}`
+        message: `⏰ Jadwal "${schedule.label}" dijalankan — ${compId || `Relay #${schedule.channel}`} ${state ? 'ON' : 'OFF'}${durationInfo}`
       });
       this._broadcastFn({
         type: 'SCHEDULE_EXECUTED',
         scheduleId: schedule.id,
         success: true,
         channel: schedule.channel,
+        componentId: compId,
         state: state,
-        duration: schedule.duration || 0
+        duration: schedule.duration || 0,
+        durationUnit: schedule.durationUnit || 'm'
       });
     }
   }

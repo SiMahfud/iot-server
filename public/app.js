@@ -12,6 +12,7 @@ import { initTelemetryChart } from './js/modules/telemetryChart.js';
 import { initPinManagerUi } from './js/modules/pinManagerUi.js';
 import { initWebSerialTools } from './js/modules/webSerialTools.js';
 import { initDeviceMaintenanceUi } from './js/modules/deviceMaintenanceUi.js';
+import { initBatchMixingUi, addMixingStep } from './js/modules/batchMixingUi.js';
 
 // DOM Elements
 const loginScreen = document.getElementById('loginScreen');
@@ -47,6 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initPinManagerUi();
   initWebSerialTools();
   initDeviceMaintenanceUi();
+  initBatchMixingUi();
+
+  // Wire mixing step add button
+  const btnAddMixStep = document.getElementById('btnAddMixStep');
+  if (btnAddMixStep) btnAddMixStep.addEventListener('click', () => addMixingStep());
 
   // PWA Service Worker
   if ('serviceWorker' in navigator) {
@@ -439,9 +445,10 @@ function initTimerCountdownModal() {
   modal?.querySelectorAll('.btn-dimmer-preset').forEach(btn => {
     btn.addEventListener('click', () => {
       const sec = parseInt(btn.dataset.timerSec);
-      if (state.activeTimerComponentId) {
+      if (state.activeTimerComponentId && sec > 0) {
         triggerComponent(state.activeTimerComponentId, true, sec);
-        showToast(`Timer dinyalakan selama ${sec / 60} menit`);
+        const label = sec >= 60 ? `${(sec / 60).toFixed(sec % 60 === 0 ? 0 : 1)} menit` : `${sec} detik`;
+        showToast(`Timer dinyalakan selama ${label}`);
         modal.classList.add('hidden');
       }
     });
@@ -449,11 +456,20 @@ function initTimerCountdownModal() {
 
   if (btnConfirm) {
     btnConfirm.addEventListener('click', () => {
-      const min = parseInt(document.getElementById('customTimerMinutes').value);
-      if (min > 0 && state.activeTimerComponentId) {
-        triggerComponent(state.activeTimerComponentId, true, min * 60);
-        showToast(`Timer dinyalakan selama ${min} menit`);
+      const valInput = document.getElementById('customTimerValue') || document.getElementById('customTimerMinutes');
+      const unitSelect = document.getElementById('customTimerUnit');
+      const val = parseInt(valInput?.value);
+      const unit = unitSelect ? unitSelect.value : 'm';
+
+      if (val > 0 && state.activeTimerComponentId) {
+        const sec = unit === 's' ? val : val * 60;
+        triggerComponent(state.activeTimerComponentId, true, sec);
+        const label = unit === 's' ? `${val} detik` : `${val} menit`;
+        showToast(`Timer dinyalakan selama ${label}`);
         modal.classList.add('hidden');
+        if (valInput) valInput.value = '';
+      } else {
+        showToast('Masukkan durasi yang valid', false);
       }
     });
   }

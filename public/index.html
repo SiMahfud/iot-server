@@ -233,6 +233,14 @@
           </svg>
           <span>Matikan Semua</span>
         </button>
+        <button id="btnOpenMixingModal" class="btn-master btn-auto-mixing" type="button" title="Pencampuran Nutrisi Otomatis">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M9 3h6v4l3 8H6l3-8V3z"></path>
+            <path d="M6 15v4a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4"></path>
+            <line x1="12" y1="3" x2="12" y2="7"></line>
+          </svg>
+          <span>🧪 Auto-Mixing</span>
+        </button>
       </section>
 
       <!-- Unified Universal Components Grid -->
@@ -335,8 +343,14 @@
                 <input type="time" id="schedTime" class="sched-input" required>
               </div>
               <div class="sched-field" id="schedDurationGroup">
-                <label class="sched-label">Durasi Nyala (Menit)</label>
-                <input type="number" id="schedDuration" class="sched-input" min="1" max="1440" placeholder="Auto-off (opsional)">
+                <label class="sched-label">Durasi Nyala (opsional)</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="number" id="schedDuration" class="sched-input" min="1" max="86400" placeholder="Auto-off" style="flex: 1;">
+                  <select id="schedDurationUnit" class="sched-input" style="width: 105px; min-width: 105px;">
+                    <option value="m">Menit</option>
+                    <option value="s">Detik</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1409,8 +1423,14 @@ void loop() {
               <input type="time" id="editSchedTime" class="sched-input" required>
             </div>
             <div class="sched-field" id="editSchedDurationGroup">
-              <label class="sched-label">Durasi Nyala (Menit)</label>
-              <input type="number" id="editSchedDuration" class="sched-input" min="1" max="1440" placeholder="Auto-off (opsional)">
+              <label class="sched-label">Durasi Nyala (opsional)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="number" id="editSchedDuration" class="sched-input" min="1" max="86400" placeholder="Auto-off" style="flex: 1;">
+                <select id="editSchedDurationUnit" class="sched-input" style="width: 105px; min-width: 105px;">
+                  <option value="m">Menit</option>
+                  <option value="s">Detik</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -1576,18 +1596,24 @@ void loop() {
         </button>
       </div>
       <div class="modal-body">
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Pilih durasi cepat atau masukkan durasi kustom:</p>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">Pilih durasi cepat atau masukkan durasi kustom (detik/menit):</p>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;">
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="15">15 Detik</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="30">30 Detik</button>
           <button type="button" class="btn-dimmer-preset" data-timer-sec="60">1 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="90">1.5 Menit</button>
+          <button type="button" class="btn-dimmer-preset" data-timer-sec="120">2 Menit</button>
           <button type="button" class="btn-dimmer-preset" data-timer-sec="300">5 Menit</button>
-          <button type="button" class="btn-dimmer-preset" data-timer-sec="600">10 Menit</button>
-          <button type="button" class="btn-dimmer-preset" data-timer-sec="900">15 Menit</button>
-          <button type="button" class="btn-dimmer-preset" data-timer-sec="1800">30 Menit</button>
-          <button type="button" class="btn-dimmer-preset" data-timer-sec="3600">1 Jam</button>
         </div>
         <div class="form-group">
-          <label class="form-label">Durasi Kustom (Menit):</label>
-          <input type="number" id="customTimerMinutes" class="form-input" min="1" max="1440" placeholder="Contoh: 45">
+          <label class="form-label">Durasi Kustom:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" id="customTimerValue" class="form-input" min="1" max="86400" placeholder="Misal: 45 atau 90" style="flex: 1;">
+            <select id="customTimerUnit" class="form-input" style="width: 110px;">
+              <option value="s" selected>Detik (s)</option>
+              <option value="m">Menit (m)</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -1619,6 +1645,121 @@ void loop() {
       <div class="modal-footer">
         <button type="button" id="btnModalCancel" class="btn-modal-cancel">Batal</button>
         <button type="button" id="btnModalConfirm" class="btn-modal-confirm">Konfirmasi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: AUTO-MIXING BATCH DOSING HIDROPONIK
+  ========================================== -->
+  <div id="modalBatchMixing" class="modal-backdrop hidden">
+    <div class="modal-card modal-card-mixing">
+      <div class="modal-header">
+        <div class="modal-header-info">
+          <h3 class="modal-title">🧪 Pencampuran Nutrisi Otomatis</h3>
+          <span class="modal-subtitle">Batch Dosing Sequential — Pompa bergantian otomatis dengan jeda aduk</span>
+        </div>
+        <button type="button" id="btnCloseMixingModal" class="btn-modal-close" title="Tutup">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Sub-navigation dalam modal -->
+      <div class="mixing-subnav" style="margin: 0 16px;">
+        <button type="button" class="mixing-subnav-btn active" data-mix-panel="mixPanelRun">🚀 Jalankan</button>
+        <button type="button" class="mixing-subnav-btn" data-mix-panel="mixPanelRecipes">📋 Resep Tersimpan</button>
+      </div>
+
+      <div class="modal-body modal-scrollable" style="max-height: 72vh; overflow-y: auto;">
+
+        <!-- ══════ PANEL: JALANKAN ══════ -->
+        <div id="mixPanelRun" class="mixing-panel">
+
+          <!-- Monitor Banner (Real-time status) -->
+          <div id="mixingMonitorBanner" class="mixing-monitor-banner">
+            <div class="mixing-monitor-header">
+              <span class="mixing-step-title">⏹ Siap Digunakan</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Pilih resep atau buat langkah baru lalu tekan <strong>Mulai Pencampuran</strong>.</p>
+          </div>
+
+          <!-- Stepper List (saat berjalan) -->
+          <div id="mixingStepsList" class="mixing-steps-list"></div>
+
+          <!-- Pilih Resep Cepat -->
+          <div class="mixing-input-card" style="margin-bottom: 12px;">
+            <label>📦 Muat dari Resep Tersimpan</label>
+            <select id="mixRecipeSelect" class="form-input" style="width: 100%; font-size: 0.84rem;">
+              <option value="">-- Pilih Resep Tersimpan --</option>
+            </select>
+          </div>
+
+          <!-- Parameter Target -->
+          <div class="mixing-grid-2col">
+            <div class="mixing-input-card">
+              <label>🎯 Target PPM</label>
+              <div class="mixing-input-with-unit">
+                <input type="number" id="mixTargetPpm" class="form-input" value="1000" min="100" max="5000" style="flex: 1;">
+                <span class="mixing-unit-badge">PPM</span>
+              </div>
+            </div>
+            <div class="mixing-input-card">
+              <label>💧 Volume Air</label>
+              <div class="mixing-input-with-unit">
+                <input type="number" id="mixTargetVolume" class="form-input" value="24" min="1" max="1000" step="0.5" style="flex: 1;">
+                <span class="mixing-unit-badge">Liter</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step Builder -->
+          <div style="margin-top: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">🔧 Langkah Pencampuran (Urutan Eksekusi)</label>
+              <button type="button" id="btnAddMixStep" class="btn-dimmer-preset" style="font-size: 0.75rem; padding: 4px 10px;">+ Tambah Langkah</button>
+            </div>
+            <div id="mixStepsBuilder" class="mixing-steps-list">
+              <!-- Step rows di-render dinamis -->
+            </div>
+          </div>
+
+          <!-- Hydroponics Safety Notice -->
+          <div class="hydro-notice-box">
+            <strong>⚠️ Urutan Penting Pencampuran AB Mix:</strong><br>
+            Air Baku → (jeda aduk) → Pekatan A → (jeda aduk) → Pekatan B → pH Down.<br>
+            Jangan mencampur Pekatan A &amp; B secara bersamaan tanpa air pelarut — berisiko endapan kalsium sulfat (gipsum).
+          </div>
+
+          <!-- Simpan Resep -->
+          <form id="formAddRecipe" style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
+            <div style="flex: 1; min-width: 160px;">
+              <label class="form-label" style="font-size: 0.76rem;">Simpan sebagai Resep:</label>
+              <input type="text" id="recipeNameInput" class="form-input" placeholder="Nama resep (misal: Sayur Daun 1000ppm)" maxlength="60" style="font-size: 0.82rem;">
+            </div>
+            <input type="text" id="recipeDescInput" class="form-input" placeholder="Catatan (opsional)" maxlength="100" style="width: 140px; font-size: 0.82rem;">
+            <button type="submit" class="btn-dimmer-preset" style="padding: 8px 14px; white-space: nowrap;">💾 Simpan Resep</button>
+          </form>
+
+          <!-- Action Buttons -->
+          <div class="mixing-actions-bar">
+            <button type="button" id="btnStartMixing" class="btn-start-mixing">
+              🚀 Mulai Pencampuran
+            </button>
+            <button type="button" id="btnEmergencyStop" class="btn-emergency-stop" style="display: none;">
+              🛑 STOP
+            </button>
+          </div>
+        </div>
+
+        <!-- ══════ PANEL: RESEP TERSIMPAN ══════ -->
+        <div id="mixPanelRecipes" class="mixing-panel hidden">
+          <div id="savedRecipesList">
+            <p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 20px 0;">Memuat daftar resep...</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -20,6 +20,7 @@ const auth = require('./auth');
 const deviceManager = require('./deviceManager');
 const schedulerManager = require('./schedulerManager');
 const automationEngine = require('./automationEngine');
+const mixingEngine = require('./mixingEngine');
 const componentTypes = require('./modules/componentTypes');
 const db = require('./database');
 
@@ -28,6 +29,7 @@ const authRoutes = require('./routes/auth');
 const deviceRoutes = require('./routes/devices');
 const scheduleRoutes = require('./routes/schedules');
 const automationRoutes = require('./routes/automations');
+const mixingRoutes = require('./routes/mixing');
 
 const app = express();
 const server = http.createServer(app);
@@ -86,6 +88,7 @@ const { requireAuth } = authRoutes;
 deviceRoutes.init({ deviceManager, db, broadcastToBrowsers, requireAuth });
 scheduleRoutes.init({ schedulerManager, db, broadcastToBrowsers, requireAuth });
 automationRoutes.init({ automationEngine, componentTypes, db, requireAuth });
+mixingRoutes.init({ mixingEngine, db, broadcastToBrowsers });
 
 // Mount Routes (requireAuth diterapkan di level mount untuk menjamin perlindungan)
 app.use('/api', authRoutes.router);
@@ -99,6 +102,7 @@ app.get('/api/component-types', (req, res) => {
 app.use('/api', requireAuth, deviceRoutes.router);
 app.use('/api/schedules', requireAuth, scheduleRoutes.router);
 app.use('/api', requireAuth, automationRoutes.router);
+app.use('/api/mixing', requireAuth, mixingRoutes.router);
 
 // Fallback 404 untuk API yang tidak terdaftar
 app.use('/api', (req, res) => {
@@ -549,6 +553,7 @@ server.listen(PORT, () => {
   // Inisialisasi scheduler dan automation engine setelah server aktif
   schedulerManager.init(deviceManager, broadcastToBrowsers);
   automationEngine.init(deviceManager, broadcastToBrowsers);
+  mixingEngine.init(deviceManager, broadcastToBrowsers);
 
   // File Watcher: Deteksi jika schedules.json diedit secara manual di text editor
   const SCHEDULES_FILE = path.join(__dirname, 'schedules.json');

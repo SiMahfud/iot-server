@@ -1,0 +1,44 @@
+{
+  "recipes": [
+    {
+      "id": "mix_093c4e423f67",
+      "name": "24Liter-1000PPM",
+      "description": "",
+      "deviceId": "node-f842f9",
+      "targetPpm": 1000,
+      "targetVolume": 24,
+      "steps": [
+        {
+          "order": 1,
+          "componentId": "switch_4",
+          "label": "Air Baku",
+          "durationSec": 120,
+          "delaySec": 10
+        },
+        {
+          "order": 2,
+          "componentId": "switch_12",
+          "label": "HNO3",
+          "durationSec": 19,
+          "delaySec": 60
+        },
+        {
+          "order": 3,
+          "componentId": "switch_13",
+          "label": "Pekatan A",
+          "durationSec": 58,
+          "delaySec": 60
+        },
+        {
+          "order": 4,
+          "componentId": "switch_14",
+          "label": "Pekatan B",
+          "durationSec": 51,
+          "delaySec": 60
+        }
+      ],
+      "createdAt": "2026-10-13T13:03:25.536Z"
+    }
+  ],
+  "calibrations": {}
+}

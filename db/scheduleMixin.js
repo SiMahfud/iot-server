@@ -27,6 +27,7 @@ module.exports = {
       time: r.time,
       days: JSON.parse(r.days || '[]'),
       duration: r.duration,
+      durationUnit: r.durationUnit || 'm',
       enabled: Boolean(r.enabled),
       label: r.label,
       targetValue: r.targetValue || '',
@@ -46,6 +47,7 @@ module.exports = {
       time: r.time,
       days: JSON.parse(r.days || '[]'),
       duration: r.duration,
+      durationUnit: r.durationUnit || 'm',
       enabled: Boolean(r.enabled),
       label: r.label,
       targetValue: r.targetValue || '',
@@ -59,8 +61,8 @@ module.exports = {
     }
     const componentId = s.componentId || (s.channel ? `relay_${s.channel}` : null);
     const stmt = this.db.prepare(`
-      INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, targetValue, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, durationUnit, enabled, label, targetValue, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     stmt.run(
       s.id,
@@ -71,6 +73,7 @@ module.exports = {
       s.time,
       JSON.stringify(s.days || []),
       s.duration || 0,
+      s.durationUnit === 's' ? 's' : 'm',
       s.enabled !== false ? 1 : 0,
       s.label || (s.componentId ? `Jadwal ${s.componentId}` : `Jadwal Relay #${s.channel}`),
       s.targetValue !== undefined ? String(s.targetValue) : '',
@@ -114,6 +117,7 @@ module.exports = {
         time = ?,
         days = ?,
         duration = ?,
+        durationUnit = ?,
         enabled = ?,
         label = ?,
         targetValue = ?
@@ -126,6 +130,7 @@ module.exports = {
       merged.time,
       JSON.stringify(daysArr),
       parseInt(merged.duration) || 0,
+      merged.durationUnit === 's' ? 's' : 'm',
       (merged.enabled === true || merged.enabled === 1 || merged.enabled === '1' || merged.enabled === 'true') ? 1 : 0,
       merged.label || (merged.componentId ? `Jadwal ${merged.componentId}` : `Jadwal Relay #${merged.channel}`),
       merged.targetValue !== undefined ? String(merged.targetValue) : '',
@@ -183,8 +188,8 @@ module.exports = {
       }
 
       const insertOrUpdate = this.db.prepare(`
-        INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, enabled, label, targetValue, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO schedules (id, deviceId, componentId, channel, action, time, days, duration, durationUnit, enabled, label, targetValue, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           deviceId = excluded.deviceId,
           componentId = excluded.componentId,
@@ -193,6 +198,7 @@ module.exports = {
           time = excluded.time,
           days = excluded.days,
           duration = excluded.duration,
+          durationUnit = excluded.durationUnit,
           enabled = excluded.enabled,
           label = excluded.label,
           targetValue = excluded.targetValue
@@ -224,6 +230,7 @@ module.exports = {
             s.time,
             JSON.stringify(s.days || []),
             parseInt(s.duration) || 0,
+            s.durationUnit === 's' ? 's' : 'm',
             s.enabled !== false ? 1 : 0,
             s.label || (componentId ? `Jadwal ${componentId}` : `Jadwal Relay #${s.channel}`),
             s.targetValue !== undefined ? String(s.targetValue) : '',

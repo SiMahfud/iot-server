@@ -62,6 +62,7 @@ class DatabaseManager {
         time TEXT NOT NULL,
         days TEXT NOT NULL DEFAULT '[]',
         duration INTEGER NOT NULL DEFAULT 0,
+        durationUnit TEXT DEFAULT 'm',
         enabled INTEGER NOT NULL DEFAULT 1,
         label TEXT,
         targetValue TEXT DEFAULT '',
@@ -142,6 +143,10 @@ class DatabaseManager {
       if (!scheduleCols.includes('targetValue')) {
         this.db.exec("ALTER TABLE schedules ADD COLUMN targetValue TEXT DEFAULT '';");
         console.log('[MIGRATION] Kolom targetValue berhasil ditambahkan ke tabel schedules');
+      }
+      if (!scheduleCols.includes('durationUnit')) {
+        this.db.exec("ALTER TABLE schedules ADD COLUMN durationUnit TEXT DEFAULT 'm';");
+        console.log('[MIGRATION] Kolom durationUnit berhasil ditambahkan ke tabel schedules');
       }
 
       const deviceCols = this.db.prepare("PRAGMA table_info(devices)").all().map(c => c.name);

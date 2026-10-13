@@ -103,6 +103,7 @@ export function initSchedulerUi() {
     const action = actionSelect.value;
     const time = document.getElementById('schedTime').value;
     const duration = parseInt(document.getElementById('schedDuration').value) || 0;
+    const durationUnit = document.getElementById('schedDurationUnit')?.value || 'm';
     const targetValue = document.getElementById('schedTargetValue') ? document.getElementById('schedTargetValue').value : '';
     const label = document.getElementById('schedLabel').value.trim();
 
@@ -118,6 +119,7 @@ export function initSchedulerUi() {
       time,
       days: selectedDays,
       duration,
+      durationUnit,
       targetValue,
       label
     };
@@ -244,7 +246,8 @@ export function renderScheduleList() {
     if (s.action === 'angle') actionLabel = `Sudut ${s.targetValue}°`;
     else if (s.action === 'value') actionLabel = `Nilai ${s.targetValue}%`;
 
-    const durationInfo = s.duration > 0 ? ` (Durasi: ${s.duration}m)` : '';
+    const unitLabel = s.durationUnit === 's' ? 's' : 'm';
+    const durationInfo = s.duration > 0 ? ` (Durasi: ${s.duration}${unitLabel})` : '';
 
     item.innerHTML = `
       <div class="sched-item-info">
@@ -348,11 +351,16 @@ export function renderTimerGrid() {
         <span style="font-weight: 700; color: var(--text-main); font-size: 0.95rem;">${escapeHtml(c.name || c.id)}</span>
         <span style="font-size: 0.75rem; color: var(--text-subtle);">${escapeHtml(c.id)}</span>
       </div>
-      <div style="display: flex; gap: 6px; margin: 10px 0;">
+      <div style="display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap;">
+        <button type="button" class="btn-dimmer-preset" data-sec="15">15s</button>
+        <button type="button" class="btn-dimmer-preset" data-sec="30">30s</button>
         <button type="button" class="btn-dimmer-preset" data-sec="60">1m</button>
+        <button type="button" class="btn-dimmer-preset" data-sec="120">2m</button>
         <button type="button" class="btn-dimmer-preset" data-sec="300">5m</button>
-        <button type="button" class="btn-dimmer-preset" data-sec="600">10m</button>
-        <button type="button" class="btn-dimmer-preset" data-sec="1800">30m</button>
+      </div>
+      <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+        <input type="number" class="form-input timer-custom-sec-input" placeholder="Detik..." min="1" max="86400" style="padding: 4px 8px; font-size: 0.8rem; flex: 1;">
+        <button type="button" class="btn-run-custom-sec btn-modal-confirm" style="padding: 4px 10px; font-size: 0.75rem; white-space: nowrap;">Nyalakan</button>
       </div>
       <button type="button" class="btn-cancel-timer danger" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(244,63,94,0.3); background: rgba(244,63,94,0.1); color: var(--danger-glow); font-size: 0.75rem; font-weight: 700; cursor: pointer;">
         Batalkan Timer Aktif
@@ -369,9 +377,32 @@ export function renderTimerGrid() {
           value: true,
           duration: sec
         });
-        showToast(`Timer ${c.name} diset selama ${sec / 60} menit`);
+        const label = sec >= 60 ? `${(sec / 60).toFixed(sec % 60 === 0 ? 0 : 1)} menit` : `${sec} detik`;
+        showToast(`Timer ${c.name || c.id} diset selama ${label}`);
       });
     });
+
+    const inputCustom = card.querySelector('.timer-custom-sec-input');
+    const btnCustom = card.querySelector('.btn-run-custom-sec');
+    if (btnCustom && inputCustom) {
+      btnCustom.addEventListener('click', () => {
+        const sec = parseInt(inputCustom.value);
+        if (sec > 0) {
+          sendWs({
+            action: 'set_component',
+            target: dev.deviceId,
+            componentId: c.id,
+            value: true,
+            duration: sec
+          });
+          const label = sec >= 60 ? `${(sec / 60).toFixed(sec % 60 === 0 ? 0 : 1)} menit` : `${sec} detik`;
+          showToast(`Timer ${c.name || c.id} diset selama ${label}`);
+          inputCustom.value = '';
+        } else {
+          showToast('Masukkan durasi detik yang valid', false);
+        }
+      });
+    }
 
     card.querySelector('.btn-cancel-timer').addEventListener('click', () => {
       sendWs({
@@ -468,6 +499,7 @@ export function initEditScheduleModal() {
     const action = editActionSelect.value;
     const time = document.getElementById('editSchedTime').value;
     const duration = parseInt(document.getElementById('editSchedDuration').value) || 0;
+    const durationUnit = document.getElementById('editSchedDurationUnit')?.value || 'm';
     const targetValueInput = document.getElementById('editSchedTargetValue');
     const targetValue = targetValueInput ? targetValueInput.value : '';
     const label = document.getElementById('editSchedLabel').value.trim();
@@ -485,6 +517,7 @@ export function initEditScheduleModal() {
       time,
       days: editSelectedDays,
       duration,
+      durationUnit,
       targetValue,
       label,
       enabled
@@ -540,6 +573,8 @@ export function openEditScheduleModal(schedule) {
 
   if (timeInput) timeInput.value = schedule.time || '';
   if (durationInput) durationInput.value = schedule.duration ? schedule.duration : '';
+  const durationUnitSelect = document.getElementById('editSchedDurationUnit');
+  if (durationUnitSelect) durationUnitSelect.value = schedule.durationUnit === 's' ? 's' : 'm';
   if (labelInput) labelInput.value = schedule.label || '';
 
   const isEnabled = schedule.enabled !== false;
